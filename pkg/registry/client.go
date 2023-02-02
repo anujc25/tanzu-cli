@@ -193,3 +193,25 @@ func (r *registry) downloadBundleOrImage(imageName, outputDir string, isBundle b
 
 	return pullOptions.Run()
 }
+
+func (r *registry) UploadImage(imageName, inputDir string) error {
+	// Creating a dummy writer to capture the logs
+	// currently logs are not displayed or used directly
+	var outputBuf, errorBuf bytes.Buffer
+	writerUI := ui.NewWriterUI(&outputBuf, &errorBuf, nil)
+
+	pushOptions := cmd.NewPushOptions(writerUI)
+	pushOptions.FileFlags = cmd.FileFlags{Files: []string{inputDir}}
+	pushOptions.ImageFlags = cmd.ImageFlags{Image: imageName}
+
+	if r.opts != nil {
+		pushOptions.RegistryFlags = cmd.RegistryFlags{
+			CACertPaths: r.opts.CACertPaths,
+			VerifyCerts: r.opts.VerifyCerts,
+			Insecure:    r.opts.Insecure,
+			Anon:        r.opts.Anon,
+		}
+	}
+
+	return pushOptions.Run()
+}
