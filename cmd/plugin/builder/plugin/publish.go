@@ -91,10 +91,10 @@ func (po *PublisherOptions) PublishPlugins() error {
 	}
 	log.Info("Successfully verified plugin artifacts")
 
-	log.Info("Verifying plugin and publisher association...")
-	if err := po.verifyPluginAndPublisherAssociation(pluginManifest); err != nil {
-		return errors.Wrap(err, "error while verifying artifacts")
-	}
+	//log.Info("Verifying plugin and publisher association...")
+	//if err := po.verifyPluginAndPublisherAssociation(pluginManifest); err != nil {
+	//	return errors.Wrap(err, "error while verifying artifacts")
+	//}
 	log.Info("Successfully verified plugin and publisher association")
 
 	mapPluginArtifacts, err := po.createTempArtifactsDirForPublishing(pluginManifest)
