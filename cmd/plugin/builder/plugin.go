@@ -5,6 +5,7 @@ package main
 
 import (
 	"github.com/spf13/cobra"
+
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/command"
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/plugin"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
@@ -31,6 +32,7 @@ type pluginPublishFlags struct {
 	Vendor             string
 	Repository         string
 	PluginManifestFile string
+	DryRun             bool
 }
 
 type pluginBuildFlags struct {
@@ -55,6 +57,7 @@ func newPluginPublishCmd() *cobra.Command {
 				Vendor:             ppFlags.Vendor,
 				Repository:         ppFlags.Repository,
 				PluginManifestFile: ppFlags.PluginManifestFile,
+				DryRun:             ppFlags.DryRun,
 			}
 			return pluginPublisher.PublishPlugins()
 		},
@@ -64,6 +67,7 @@ func newPluginPublishCmd() *cobra.Command {
 	pluginPublishCmd.Flags().StringVarP(&ppFlags.Vendor, "vendor", "v", "", "Name of the vendor")
 	pluginPublishCmd.Flags().StringVarP(&ppFlags.Repository, "repository", "r", "", "Repository to which plugin needs to be published")
 	pluginPublishCmd.Flags().StringVarP(&ppFlags.PluginManifestFile, "manifest", "m", "", "Plugin manifest file [required with legacy artifacts directory]")
+	pluginPublishCmd.Flags().BoolVarP(&ppFlags.DryRun, "dry-run", "d", false, "Printout commands without executing them.")
 
 	return pluginPublishCmd
 }

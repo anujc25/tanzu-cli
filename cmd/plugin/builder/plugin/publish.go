@@ -4,21 +4,27 @@
 package plugin
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/aunum/log"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
+	kerrors "k8s.io/apimachinery/pkg/util/errors"
+
 	"github.com/vmware-tanzu/tanzu-cli/pkg/carvelhelpers"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/db"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/publisher"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/utils"
-	"gopkg.in/yaml.v3"
-	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	"os"
-	"path/filepath"
+	configtypes "github.com/vmware-tanzu/tanzu-plugin-runtime/config/types"
 )
 
-const PublisherPluginAssociationURL = "https://gist.githubusercontent.com/anujc25/894c5187b7d1da25490139fe54c1e73f/raw/b0b8f15e70110b857b3b75d0ce4f7ab04b5782c3"
+const PublisherPluginAssociationURL = "https://gist.githubusercontent.com/marckhouzam/5b653daf0afb815152f45aade5bc5d08/raw/7cd7e79c55361b492f611c8c090640daa5be1d9d"
 
 type PublisherOptions struct {
 	ArtifactDir        string
@@ -133,9 +139,12 @@ func (po *PublisherOptions) verifyPluginArtifacts(pluginManifest *cli.Manifest) 
 					cli.MakeArtifactName(pluginManifest.Plugins[i].Name, osArch))
 
 				if !utils.PathExists(pluginFilePath) {
-					errList = append(errList, errors.Errorf("unable to verify artifacts for "+
+					// 	errList = append(errList, errors.Errorf("unable to verify artifacts for "+
+					// 		"plugin: %q, target: %q, osArch: %q, version: %q. File %q doesn't exist",
+					// pluginManifest.Plugins[i].Name, pluginManifest.Plugins[i].Target, osArch.String(), version, pluginFilePath))
+					log.Warningf("skipping missing artifact for "+
 						"plugin: %q, target: %q, osArch: %q, version: %q. File %q doesn't exist",
-						pluginManifest.Plugins[i].Name, pluginManifest.Plugins[i].Target, osArch.String(), version, pluginFilePath))
+						pluginManifest.Plugins[i].Name, pluginManifest.Plugins[i].Target, osArch.String(), version, pluginFilePath)
 				}
 			}
 		}
@@ -170,7 +179,8 @@ func (po *PublisherOptions) verifyPluginAndPublisherAssociation(pluginManifest *
 		found := false
 		for j := range registeredPluginsForPublisher.Plugins {
 			if pluginManifest.Plugins[i].Name == registeredPluginsForPublisher.Plugins[j].Name &&
-				pluginManifest.Plugins[i].Target == registeredPluginsForPublisher.Plugins[j].Target {
+				configtypes.StringToTarget(strings.ToLower(pluginManifest.Plugins[i].Target)) ==
+					configtypes.StringToTarget(strings.ToLower(registeredPluginsForPublisher.Plugins[j].Target)) {
 				found = true
 			}
 		}
@@ -241,7 +251,7 @@ func (po *PublisherOptions) createTempArtifactsDirForPublishing(pluginManifest *
 					OS:   osArch.OS(),
 					Arch: osArch.Arch(),
 					Path: tmpPluginFilePath,
-					RelativeURI: fmt.Sprintf("%s/%s/%s/%s:%s", osArch.OS(), osArch.Arch(),
+					RelativeURI: fmt.Sprintf("%s/%s/%s/%s/%s/%s:%s", po.Vendor, po.Publisher, osArch.OS(), osArch.Arch(),
 						pluginManifest.Plugins[i].Target, pluginManifest.Plugins[i].Name, version),
 				}
 				pa.VersionArtifactMap[version] = append(pa.VersionArtifactMap[version], am)
@@ -253,11 +263,10 @@ func (po *PublisherOptions) createTempArtifactsDirForPublishing(pluginManifest *
 
 func (po *PublisherOptions) publishPluginsFromPluginArtifacts(mapPluginArtifacts map[string]pluginArtifacts) error {
 	var errList []error
-	baseRepository := fmt.Sprintf("%s/%s/%s", po.Repository, po.Vendor, po.Publisher)
 	for _, pa := range mapPluginArtifacts {
 		for _, artifacts := range pa.VersionArtifactMap {
 			for _, a := range artifacts {
-				pluginImage := fmt.Sprintf("%s/%s", baseRepository, a.RelativeURI)
+				pluginImage := fmt.Sprintf("%s/%s", po.Repository, a.RelativeURI)
 
 				log.Infof("imgpkg push -i %s -f %s", pluginImage, filepath.Dir(a.Path))
 
@@ -285,6 +294,10 @@ func (po *PublisherOptions) verifyPluginsOnCentralDatabase(centralDBImage, tempD
 	for _, pa := range mapPluginArtifacts {
 		for version, artifacts := range pa.VersionArtifactMap {
 			for _, a := range artifacts {
+				digest, err := getDigest(a.Path)
+				if err != nil {
+					return errors.Wrapf(err, "unable to compute digest of '%s' for target '%s'", pa.Name, pa.Target)
+				}
 				row := db.PluginInventoryRow{
 					Name:               pa.Name,
 					Target:             pa.Target,
@@ -296,7 +309,7 @@ func (po *PublisherOptions) verifyPluginsOnCentralDatabase(centralDBImage, tempD
 					Vendor:             po.Vendor,
 					OS:                 a.OS,
 					Arch:               a.Arch,
-					Digest:             "",
+					Digest:             digest,
 					URI:                a.RelativeURI,
 				}
 
@@ -312,9 +325,28 @@ func (po *PublisherOptions) verifyPluginsOnCentralDatabase(centralDBImage, tempD
 }
 
 func (po *PublisherOptions) updateCentralDatabase(centralDBImage, tempDir string) error {
-	err := carvelhelpers.UploadImage(centralDBImage, tempDir)
-	if err != nil {
-		return errors.Wrapf(err, "failed to upload image '%s' to update central database image", centralDBImage)
+	log.Infof("imgpkg push -i %s -f %s", centralDBImage, tempDir)
+
+	if !po.DryRun {
+		err := carvelhelpers.UploadImage(centralDBImage, tempDir)
+		if err != nil {
+			return errors.Wrapf(err, "failed to upload image '%s' to update central database image", centralDBImage)
+		}
 	}
 	return nil
+}
+
+// getDigest computes the sha256 digest of the specified file
+func getDigest(filePath string) (string, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, f); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
