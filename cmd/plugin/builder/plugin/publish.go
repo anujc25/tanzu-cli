@@ -6,6 +6,8 @@ package plugin
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/vmware-tanzu/tanzu-cli/pkg/distribution"
+	"github.com/vmware-tanzu/tanzu-cli/pkg/plugininventory"
 	"io"
 	"os"
 	"path/filepath"
@@ -18,7 +20,6 @@ import (
 
 	"github.com/vmware-tanzu/tanzu-cli/pkg/carvelhelpers"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
-	"github.com/vmware-tanzu/tanzu-cli/pkg/db"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/publisher"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/utils"
 	configtypes "github.com/vmware-tanzu/tanzu-plugin-runtime/config/types"
@@ -35,30 +36,30 @@ type PublisherOptions struct {
 	DryRun             bool
 }
 
-type pluginArtifacts struct {
-	// Name is the name of the plugin.
-	Name string
-
-	// Target is the name of the plugin.
-	Target string
-
-	// Description is the plugin's description.
-	Description string
-
-	// Versions available for plugin.
-	VersionArtifactMap map[string][]artifactMetadata
-}
-
-type artifactMetadata struct {
-	// OS is the name of the os.
-	OS string
-	// Arch is the name of the arch.
-	Arch string
-	// Path is plugin binary path from where we need to publish the plugin
-	Path string
-	// RelativeURI is relative path within the repository for the plugins
-	RelativeURI string
-}
+//type pluginArtifacts struct {
+//	// Name is the name of the plugin.
+//	Name string
+//
+//	// Target is the name of the plugin.
+//	Target string
+//
+//	// Description is the plugin's description.
+//	Description string
+//
+//	// Versions available for plugin.
+//	VersionArtifactMap map[string][]artifactMetadata
+//}
+//
+//type artifactMetadata struct {
+//	// OS is the name of the os.
+//	OS string
+//	// Arch is the name of the arch.
+//	Arch string
+//	// Path is plugin binary path from where we need to publish the plugin
+//	Path string
+//	// RelativeURI is relative path within the repository for the plugins
+//	RelativeURI string
+//}
 
 type PublisherImpl interface {
 	PublishPlugins() error
@@ -206,13 +207,13 @@ func (po *PublisherOptions) getPluginManifest() (*cli.Manifest, error) {
 	return pluginManifest, nil
 }
 
-func (po *PublisherOptions) createTempArtifactsDirForPublishing(pluginManifest *cli.Manifest) (map[string]pluginArtifacts, error) {
+func (po *PublisherOptions) createTempArtifactsDirForPublishing(pluginManifest *cli.Manifest) (map[string]plugininventory.PluginInventoryEntry, error) {
 	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		return nil, err
 	}
 
-	mapPluginArtifacts := make(map[string]pluginArtifacts)
+	mapPluginArtifacts := make(map[string]plugininventory.PluginInventoryEntry)
 	for i := range pluginManifest.Plugins {
 		for _, osArch := range cli.AllOSArch {
 			for _, version := range pluginManifest.Plugins[i].Versions {
@@ -235,43 +236,51 @@ func (po *PublisherOptions) createTempArtifactsDirForPublishing(pluginManifest *
 				key := fmt.Sprintf("%s-%s", pluginManifest.Plugins[i].Target, pluginManifest.Plugins[i].Name)
 				pa, exists := mapPluginArtifacts[key]
 				if !exists {
-					pa = pluginArtifacts{
-						Name:               pluginManifest.Plugins[i].Name,
-						Target:             pluginManifest.Plugins[i].Target,
-						Description:        pluginManifest.Plugins[i].Description,
-						VersionArtifactMap: make(map[string][]artifactMetadata),
+					pa = plugininventory.PluginInventoryEntry{
+						Name:        pluginManifest.Plugins[i].Name,
+						Target:      configtypes.Target(pluginManifest.Plugins[i].Target),
+						Description: pluginManifest.Plugins[i].Description,
+						Publisher:   po.Publisher,
+						Vendor:      po.Vendor,
+						Artifacts:   make(map[string]distribution.ArtifactList),
 					}
 					mapPluginArtifacts[key] = pa
 				}
-				_, exists = pa.VersionArtifactMap[version]
+				_, exists = pa.Artifacts[version]
 				if !exists {
-					pa.VersionArtifactMap[version] = make([]artifactMetadata, 0)
+					pa.Artifacts[version] = make([]distribution.Artifact, 0)
 				}
-				am := artifactMetadata{
-					OS:   osArch.OS(),
-					Arch: osArch.Arch(),
-					Path: tmpPluginFilePath,
-					RelativeURI: fmt.Sprintf("%s/%s/%s/%s/%s/%s:%s", po.Vendor, po.Publisher, osArch.OS(), osArch.Arch(),
+
+				digest, err := getDigest(tmpPluginFilePath)
+				if err != nil {
+					return nil, errors.Wrapf(err, "unable to calculate digest for path %v", tmpPluginFilePath)
+				}
+				am := distribution.Artifact{
+					OS:     osArch.OS(),
+					Arch:   osArch.Arch(),
+					Digest: digest,
+					URI:    tmpPluginFilePath,
+					Image: fmt.Sprintf("%s/%s/%s/%s/%s/%s:%s", po.Vendor, po.Publisher, osArch.OS(), osArch.Arch(),
 						pluginManifest.Plugins[i].Target, pluginManifest.Plugins[i].Name, version),
 				}
-				pa.VersionArtifactMap[version] = append(pa.VersionArtifactMap[version], am)
+				pa.Artifacts[version] = append(pa.Artifacts[version], am)
 			}
 		}
 	}
 	return mapPluginArtifacts, nil
 }
 
-func (po *PublisherOptions) publishPluginsFromPluginArtifacts(mapPluginArtifacts map[string]pluginArtifacts) error {
+func (po *PublisherOptions) publishPluginsFromPluginArtifacts(mapPluginArtifacts map[string]plugininventory.PluginInventoryEntry) error {
 	var errList []error
 	for _, pa := range mapPluginArtifacts {
-		for _, artifacts := range pa.VersionArtifactMap {
+		for _, artifacts := range pa.Artifacts {
 			for _, a := range artifacts {
-				pluginImage := fmt.Sprintf("%s/%s", po.Repository, a.RelativeURI)
+				pluginImage := fmt.Sprintf("%s/%s", po.Repository, a.Image)
 
-				log.Infof("imgpkg push -i %s -f %s", pluginImage, filepath.Dir(a.Path))
+				log.Infof("imgpkg push -i %s -f %s", pluginImage, filepath.Dir(a.URI))
 
 				if !po.DryRun {
-					err := carvelhelpers.UploadImage(pluginImage, filepath.Dir(a.Path))
+					err := carvelhelpers.UploadImage(pluginImage, filepath.Dir(a.URI))
 					if err != nil {
 						errList = append(errList, err)
 					}
@@ -282,45 +291,20 @@ func (po *PublisherOptions) publishPluginsFromPluginArtifacts(mapPluginArtifacts
 	return kerrors.NewAggregate(errList)
 }
 
-func (po *PublisherOptions) verifyPluginsOnCentralDatabase(centralDBImage, tempDir string, mapPluginArtifacts map[string]pluginArtifacts) error {
-	err := carvelhelpers.DownloadImage(centralDBImage, tempDir)
+func (po *PublisherOptions) verifyPluginsOnCentralDatabase(centralDBImage, tempDir string, mapPluginArtifacts map[string]plugininventory.PluginInventoryEntry) error {
+	err := carvelhelpers.DownloadImageAndSaveFilesToDir(centralDBImage, tempDir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to download image '%s'", centralDBImage)
 	}
 
-	sqliteDBFileName := filepath.Join(tempDir, "plugin_inventory.db")
-	sqliteDB := db.NewSQLiteDB(sqliteDBFileName)
+	sqliteDB := plugininventory.NewSQLiteInventory("", tempDir, "")
 
-	for _, pa := range mapPluginArtifacts {
-		for version, artifacts := range pa.VersionArtifactMap {
-			for _, a := range artifacts {
-				digest, err := getDigest(a.Path)
-				if err != nil {
-					return errors.Wrapf(err, "unable to compute digest of '%s' for target '%s'", pa.Name, pa.Target)
-				}
-				row := db.PluginInventoryRow{
-					Name:               pa.Name,
-					Target:             pa.Target,
-					RecommendedVersion: "",
-					Version:            version,
-					Hidden:             "",
-					Description:        pa.Description,
-					Publisher:          po.Publisher,
-					Vendor:             po.Vendor,
-					OS:                 a.OS,
-					Arch:               a.Arch,
-					Digest:             digest,
-					URI:                a.RelativeURI,
-				}
-
-				err = sqliteDB.InsertPluginRow(row)
-				if err != nil {
-					return errors.Wrapf(err, "row: %v", row)
-				}
-			}
+	for _, pluginInventoryEntry := range mapPluginArtifacts {
+		err := sqliteDB.InsertPlugin(&pluginInventoryEntry)
+		if err != nil {
+			return errors.Wrapf(err, "error while inserting plugin: %v", pluginInventoryEntry)
 		}
 	}
-
 	return nil
 }
 
