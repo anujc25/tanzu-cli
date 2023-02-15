@@ -28,52 +28,34 @@ import (
 const PublisherPluginAssociationURL = "https://gist.githubusercontent.com/marckhouzam/5b653daf0afb815152f45aade5bc5d08/raw/7cd7e79c55361b492f611c8c090640daa5be1d9d"
 
 type PublisherOptions struct {
+	DryRun             bool
 	ArtifactDir        string
 	Publisher          string
 	Vendor             string
 	Repository         string
 	PluginManifestFile string
-	DryRun             bool
+	PublishScriptFile  string
+	bashScript         string
 }
-
-//type pluginArtifacts struct {
-//	// Name is the name of the plugin.
-//	Name string
-//
-//	// Target is the name of the plugin.
-//	Target string
-//
-//	// Description is the plugin's description.
-//	Description string
-//
-//	// Versions available for plugin.
-//	VersionArtifactMap map[string][]artifactMetadata
-//}
-//
-//type artifactMetadata struct {
-//	// OS is the name of the os.
-//	OS string
-//	// Arch is the name of the arch.
-//	Arch string
-//	// Path is plugin binary path from where we need to publish the plugin
-//	Path string
-//	// RelativeURI is relative path within the repository for the plugins
-//	RelativeURI string
-//}
 
 type PublisherImpl interface {
 	PublishPlugins() error
 }
 
 func (po *PublisherOptions) PublishPlugins() error {
+	po.bashScript = "#!/usr/bin/env bash\n"
+
 	log.Infof("Starting plugin publishing process...")
 
 	if po.PluginManifestFile == "" {
 		po.PluginManifestFile = filepath.Join(po.ArtifactDir, cli.PluginManifestFileName)
 	}
+	if po.PublishScriptFile == "" {
+		po.PublishScriptFile = "plugin_publish_script.sh"
+	}
 
-	centralDBImage := fmt.Sprintf("%s/central:latest", po.Repository)
-	tempCentralDBDir, err := os.MkdirTemp("", "oci_image")
+	dbImage := fmt.Sprintf("%s/central:latest", po.Repository)
+	tempDBDir, err := getTempDirectory("db")
 	if err != nil {
 		return errors.Wrap(err, "error creating temporary directory")
 	}
@@ -87,7 +69,7 @@ func (po *PublisherOptions) PublishPlugins() error {
 		po.ArtifactDir, po.Publisher, po.Vendor, po.Repository, po.PluginManifestFile)
 
 	log.Info("Verifying plugin artifacts...")
-	if err := po.verifyPluginArtifacts(pluginManifest); err != nil {
+	if err := po.verifyPluginBinaryArtifacts(pluginManifest); err != nil {
 		return errors.Wrap(err, "error while verifying artifacts")
 	}
 	log.Info("Successfully verified plugin artifacts")
@@ -96,41 +78,40 @@ func (po *PublisherOptions) PublishPlugins() error {
 	//if err := po.verifyPluginAndPublisherAssociation(pluginManifest); err != nil {
 	//	return errors.Wrap(err, "error while verifying artifacts")
 	//}
-	log.Info("Successfully verified plugin and publisher association")
+	log.Info("Skipping plugin and publisher association verification")
 
-	mapPluginArtifacts, err := po.createTempArtifactsDirForPublishing(pluginManifest)
+	mapPluginArtifacts, err := po.organizePluginArtifactsForPublishing(pluginManifest)
 	if err != nil {
 		return errors.Wrapf(err, "unable to create temp artifacts directory for publishing")
 	}
 
-	b, err := yaml.Marshal(mapPluginArtifacts)
-	if err != nil {
-		return errors.Wrapf(err, "unable to marshal mapPluginArtifacts")
-	}
-
-	log.Info(string(b))
-
-	log.Info("Verify plugins on central database index...")
-	err = po.verifyPluginsOnCentralDatabase(centralDBImage, tempCentralDBDir, mapPluginArtifacts)
+	log.Info("Insert and verify plugins on database...")
+	err = po.insertPluginsToLocalDatabase(dbImage, tempDBDir, mapPluginArtifacts)
 	if err != nil {
 		return errors.Wrapf(err, "error while updating central database index")
 	}
 
+	log.Info("Publishing plugin binaries to the repository...")
 	err = po.publishPluginsFromPluginArtifacts(mapPluginArtifacts)
 	if err != nil {
 		return errors.Wrapf(err, "error while publishing plugins to the repository")
 	}
 
-	log.Info("Updating central database index...")
-	err = po.updateCentralDatabase(centralDBImage, tempCentralDBDir)
+	log.Info("Publishing database...")
+	err = po.publishDatabase(dbImage, tempDBDir)
 	if err != nil {
 		return errors.Wrapf(err, "error while updating central database index")
 	}
 
+	if po.DryRun {
+		log.Infof("Saving the publish script to file: %q", po.PublishScriptFile)
+		return po.savePublishScriptToFile()
+	}
 	return nil
 }
 
-func (po *PublisherOptions) verifyPluginArtifacts(pluginManifest *cli.Manifest) error {
+// verifyPluginBinaryArtifacts verifies that the specified plugin binaries are available for all required OS_Arch
+func (po *PublisherOptions) verifyPluginBinaryArtifacts(pluginManifest *cli.Manifest) error {
 	var errList []error
 	for i := range pluginManifest.Plugins {
 		for _, osArch := range cli.MinOSArch {
@@ -140,12 +121,9 @@ func (po *PublisherOptions) verifyPluginArtifacts(pluginManifest *cli.Manifest) 
 					cli.MakeArtifactName(pluginManifest.Plugins[i].Name, osArch))
 
 				if !utils.PathExists(pluginFilePath) {
-					// 	errList = append(errList, errors.Errorf("unable to verify artifacts for "+
-					// 		"plugin: %q, target: %q, osArch: %q, version: %q. File %q doesn't exist",
-					// pluginManifest.Plugins[i].Name, pluginManifest.Plugins[i].Target, osArch.String(), version, pluginFilePath))
-					log.Warningf("skipping missing artifact for "+
+					errList = append(errList, errors.Errorf("unable to verify artifacts for "+
 						"plugin: %q, target: %q, osArch: %q, version: %q. File %q doesn't exist",
-						pluginManifest.Plugins[i].Name, pluginManifest.Plugins[i].Target, osArch.String(), version, pluginFilePath)
+						pluginManifest.Plugins[i].Name, pluginManifest.Plugins[i].Target, osArch.String(), version, pluginFilePath))
 				}
 			}
 		}
@@ -193,6 +171,7 @@ func (po *PublisherOptions) verifyPluginAndPublisherAssociation(pluginManifest *
 	return kerrors.NewAggregate(errList)
 }
 
+// getPluginManifest reads the PluginManifest file and returns Manifest object
 func (po *PublisherOptions) getPluginManifest() (*cli.Manifest, error) {
 	data, err := os.ReadFile(po.PluginManifestFile)
 	if err != nil {
@@ -207,8 +186,12 @@ func (po *PublisherOptions) getPluginManifest() (*cli.Manifest, error) {
 	return pluginManifest, nil
 }
 
-func (po *PublisherOptions) createTempArtifactsDirForPublishing(pluginManifest *cli.Manifest) (map[string]plugininventory.PluginInventoryEntry, error) {
-	tmpDir, err := os.MkdirTemp("", "")
+// organizePluginArtifactsForPublishing organizes the plugin artifacts for publishing and returns the map of plugin name_target to PluginInventoryEntry
+// As part of organizing the plugin artifacts function implements following steps:
+// - Create temporary directory to hold plugin binary artifacts
+// - Iterate through all the plugin specified in the plugin manifest for all supported OS_ARCH and create PluginInventoryEntry
+func (po *PublisherOptions) organizePluginArtifactsForPublishing(pluginManifest *cli.Manifest) (map[string]plugininventory.PluginInventoryEntry, error) {
+	tmpDir, err := getTempDirectory("plugin_artifacts")
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +253,7 @@ func (po *PublisherOptions) createTempArtifactsDirForPublishing(pluginManifest *
 	return mapPluginArtifacts, nil
 }
 
+// publishPluginsFromPluginArtifacts
 func (po *PublisherOptions) publishPluginsFromPluginArtifacts(mapPluginArtifacts map[string]plugininventory.PluginInventoryEntry) error {
 	var errList []error
 	for _, pa := range mapPluginArtifacts {
@@ -277,9 +261,10 @@ func (po *PublisherOptions) publishPluginsFromPluginArtifacts(mapPluginArtifacts
 			for _, a := range artifacts {
 				pluginImage := fmt.Sprintf("%s/%s", po.Repository, a.Image)
 
-				log.Infof("imgpkg push -i %s -f %s", pluginImage, filepath.Dir(a.URI))
-
-				if !po.DryRun {
+				if po.DryRun {
+					cmd := fmt.Sprintf("imgpkg push -i %s -f %s", pluginImage, filepath.Dir(a.URI))
+					po.bashScript = po.bashScript + "\n" + cmd
+				} else {
 					err := carvelhelpers.UploadImage(pluginImage, filepath.Dir(a.URI))
 					if err != nil {
 						errList = append(errList, err)
@@ -291,33 +276,56 @@ func (po *PublisherOptions) publishPluginsFromPluginArtifacts(mapPluginArtifacts
 	return kerrors.NewAggregate(errList)
 }
 
-func (po *PublisherOptions) verifyPluginsOnCentralDatabase(centralDBImage, tempDir string, mapPluginArtifacts map[string]plugininventory.PluginInventoryEntry) error {
+func (po *PublisherOptions) insertPluginsToLocalDatabase(centralDBImage, tempDir string, mapPluginArtifacts map[string]plugininventory.PluginInventoryEntry) error {
 	err := carvelhelpers.DownloadImageAndSaveFilesToDir(centralDBImage, tempDir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to download image '%s'", centralDBImage)
 	}
 
 	sqliteDB := plugininventory.NewSQLiteInventory("", tempDir, "")
-
 	for _, pluginInventoryEntry := range mapPluginArtifacts {
 		err := sqliteDB.InsertPlugin(&pluginInventoryEntry)
 		if err != nil {
-			return errors.Wrapf(err, "error while inserting plugin: %v", pluginInventoryEntry)
+			log.Warningf("error while inserting plugin: %v", pluginInventoryEntry)
+			//return errors.Wrapf(err, "error while inserting plugin: %v", pluginInventoryEntry)
 		}
 	}
 	return nil
 }
 
-func (po *PublisherOptions) updateCentralDatabase(centralDBImage, tempDir string) error {
-	log.Infof("imgpkg push -i %s -f %s", centralDBImage, tempDir)
-
-	if !po.DryRun {
+// publishDatabase
+func (po *PublisherOptions) publishDatabase(centralDBImage, tempDir string) error {
+	if po.DryRun {
+		cmd := fmt.Sprintf("imgpkg push -i %s -f %s", centralDBImage, tempDir)
+		po.bashScript = po.bashScript + "\n" + cmd
+	} else {
 		err := carvelhelpers.UploadImage(centralDBImage, tempDir)
 		if err != nil {
 			return errors.Wrapf(err, "failed to upload image '%s' to update central database image", centralDBImage)
 		}
 	}
 	return nil
+}
+
+func (po *PublisherOptions) savePublishScriptToFile() error {
+	err := utils.SaveFile(po.PublishScriptFile, []byte(po.bashScript))
+	if err != nil {
+		return errors.Wrapf(err, "error while saving publishing script to %s", po.PublishScriptFile)
+	}
+	return nil
+}
+
+func getTempDirectory(dirName string) (string, error) {
+	tempDir := filepath.Join(os.TempDir(), dirName)
+	err := os.RemoveAll(tempDir)
+	if err != nil {
+		return "", err
+	}
+	err = os.Mkdir(tempDir, 0755)
+	if err != nil {
+		return "", err
+	}
+	return tempDir, nil
 }
 
 // getDigest computes the sha256 digest of the specified file
