@@ -90,6 +90,41 @@ func (b *SQLiteInventory) getPluginsFromDB() ([]*PluginInventoryEntry, error) {
 	return b.extractPluginsFromRows(rows)
 }
 
+func (b *SQLiteInventory) InsertPlugin(pluginInventoryEntry *PluginInventoryEntry) error {
+	db, err := sql.Open("sqlite3", b.inventoryFile)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open the DB from '%s' file", b.inventoryFile)
+	}
+	defer db.Close()
+
+	for version, artifacts := range pluginInventoryEntry.Artifacts {
+		for _, a := range artifacts {
+
+			row := inventoryDBRow{
+				name:               pluginInventoryEntry.Name,
+				target:             string(pluginInventoryEntry.Target),
+				recommendedVersion: "",
+				version:            version,
+				hidden:             "",
+				description:        pluginInventoryEntry.Description,
+				publisher:          pluginInventoryEntry.Publisher,
+				vendor:             pluginInventoryEntry.Vendor,
+				os:                 a.OS,
+				arch:               a.Arch,
+				digest:             a.Digest,
+				uri:                a.Image,
+			}
+
+			_, err = db.Exec("INSERT INTO PluginBinaries VALUES(?,?,?,?,?,?,?,?,?,?,?,?);", row.name, row.target, row.recommendedVersion, row.version, row.hidden, row.description, row.publisher, row.vendor, row.os, row.arch, row.digest, row.uri)
+			if err != nil {
+				return errors.Wrap(err, "unable to insert plugin row to the DB")
+			}
+		}
+	}
+
+	return nil
+}
+
 // extractPluginsFromRows loops through all DB rows and builds an array
 // of Discovered plugins based on the data extracted.
 func (b *SQLiteInventory) extractPluginsFromRows(rows *sql.Rows) ([]*PluginInventoryEntry, error) {
