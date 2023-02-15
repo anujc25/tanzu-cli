@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/command"
-	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/plugin"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
 )
 
@@ -21,18 +20,9 @@ func NewPluginCmd() *cobra.Command {
 	pluginCmd.SetUsageFunc(cli.SubCmdUsageFunc)
 
 	pluginCmd.AddCommand(
-		newPluginPublishCmd(),
 		newPluginBuildCmd(),
 	)
 	return pluginCmd
-}
-
-type pluginPublishFlags struct {
-	Publisher          string
-	Vendor             string
-	Repository         string
-	PluginManifestFile string
-	DryRun             bool
 }
 
 type pluginBuildFlags struct {
@@ -41,35 +31,6 @@ type pluginBuildFlags struct {
 	LDFlags     string
 	OSArch      []string
 	Version     string
-}
-
-func newPluginPublishCmd() *cobra.Command {
-	var ppFlags = &pluginPublishFlags{}
-
-	var pluginPublishCmd = &cobra.Command{
-		Use:   "publish",
-		Short: "Publish plugins to a repository",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			pluginPublisher := plugin.PublisherOptions{
-				ArtifactDir:        args[0],
-				Publisher:          ppFlags.Publisher,
-				Vendor:             ppFlags.Vendor,
-				Repository:         ppFlags.Repository,
-				PluginManifestFile: ppFlags.PluginManifestFile,
-				DryRun:             ppFlags.DryRun,
-			}
-			return pluginPublisher.PublishPlugins()
-		},
-	}
-
-	pluginPublishCmd.Flags().StringVarP(&ppFlags.Publisher, "publisher", "p", "", "Name of the publisher")
-	pluginPublishCmd.Flags().StringVarP(&ppFlags.Vendor, "vendor", "v", "", "Name of the vendor")
-	pluginPublishCmd.Flags().StringVarP(&ppFlags.Repository, "repository", "r", "", "Repository to which plugin needs to be published")
-	pluginPublishCmd.Flags().StringVarP(&ppFlags.PluginManifestFile, "manifest", "m", "", "Plugin manifest file [required with legacy artifacts directory]")
-	pluginPublishCmd.Flags().BoolVarP(&ppFlags.DryRun, "dry-run", "d", false, "Printout commands without executing them.")
-
-	return pluginPublishCmd
 }
 
 func newPluginBuildCmd() *cobra.Command {
