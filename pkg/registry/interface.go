@@ -19,4 +19,6 @@ type Registry interface {
 	DownloadBundle(imageName, outputDir string) error
 	// DownloadImage downloads an OCI image similarly to the `imgpkg pull -i` command
 	DownloadImage(imageName, outputDir string) error
+	// UploadImage uploads an OCI image similarly to the `imgpkg push -i` command
+	UploadImage(imageName, inputDir string) error
 }

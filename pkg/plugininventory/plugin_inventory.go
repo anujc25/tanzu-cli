@@ -43,4 +43,5 @@ type PluginInventoryEntry struct {
 // inventory.
 type PluginInventory interface {
 	GetAllPlugins() ([]*PluginInventoryEntry, error)
+	InsertPlugin(*PluginInventoryEntry) error
 }
