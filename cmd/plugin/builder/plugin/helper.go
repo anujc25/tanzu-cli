@@ -1,0 +1,44 @@
+// Copyright 2023 VMware, Inc. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+package plugin
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+
+	"github.com/pkg/errors"
+	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
+	"gopkg.in/yaml.v3"
+)
+
+// getPluginManifest reads the PluginManifest file and returns Manifest object
+func readPluginManifest(pluginManifestFile string) (*cli.Manifest, error) {
+	data, err := os.ReadFile(pluginManifestFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "fail to read the plugin manifest file")
+	}
+
+	pluginManifest := &cli.Manifest{}
+	err = yaml.Unmarshal(data, pluginManifest)
+	if err != nil {
+		return nil, errors.Wrap(err, "fail to read the plugin manifest file")
+	}
+	return pluginManifest, nil
+}
+
+func pushImage(image, filePath string) error {
+	output, err := exec.Command("imgpkg", "push", "-i", image, "-f", filePath).CombinedOutput()
+	return errors.Wrapf(err, "output: %s", string(output))
+}
+
+func convertImageToArchive(image, archivePath string) error {
+	err := os.MkdirAll(filepath.Dir(archivePath), 0755)
+	if err != nil {
+		return err
+	}
+
+	output, err := exec.Command("imgpkg", "copy", "-i", image, "--to-tar", archivePath).CombinedOutput()
+	return errors.Wrapf(err, "output: %s", string(output))
+}

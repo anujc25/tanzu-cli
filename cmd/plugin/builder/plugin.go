@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/command"
+	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/plugin"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
 )
 
@@ -21,6 +22,7 @@ func NewPluginCmd() *cobra.Command {
 
 	pluginCmd.AddCommand(
 		newPluginBuildCmd(),
+		newPluginBuildPackageCmd(),
 	)
 	return pluginCmd
 }
@@ -32,6 +34,12 @@ type pluginBuildFlags struct {
 	OSArch      []string
 	Version     string
 	Match       string
+}
+
+type pluginBuildPackageFlags struct {
+	BinaryArtifactDir  string
+	PackageArtifactDir string
+	LocalOCIRepository string
 }
 
 func newPluginBuildCmd() *cobra.Command {
@@ -71,4 +79,29 @@ func newPluginBuildCmd() *cobra.Command {
 	pluginBuildCmd.Flags().StringVarP(&pbFlags.Match, "match", "", "*", "match a plugin name to build, supports globbing")
 
 	return pluginBuildCmd
+}
+
+func newPluginBuildPackageCmd() *cobra.Command {
+	var pbpFlags = &pluginBuildPackageFlags{}
+
+	var pluginBuildPackageCmd = &cobra.Command{
+		Use:   "build-package",
+		Short: "Build plugin packages",
+		Long:  "Build plugin packages OCI image as tar.gz file that can be published to any repository",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			bppArgs := &plugin.BuildPluginPackageOptions{
+				BinaryArtifactDir:  pbpFlags.BinaryArtifactDir,
+				PackageArtifactDir: pbpFlags.PackageArtifactDir,
+				LocalOCIRegistry:   pbpFlags.LocalOCIRepository,
+			}
+			return bppArgs.BuildPluginPackages()
+		},
+	}
+
+	pluginBuildPackageCmd.Flags().StringVarP(&pbpFlags.BinaryArtifactDir, "binary-artifacts", "", "./artifacts/binary", "plugin binary artifact directory")
+	pluginBuildPackageCmd.Flags().StringVarP(&pbpFlags.PackageArtifactDir, "package-artifacts", "", "./artifacts/packages", "plugin package artifacts directory")
+	pluginBuildPackageCmd.Flags().StringVarP(&pbpFlags.LocalOCIRepository, "oci-registry", "", "", "local oci-registry to use for generating packages")
+
+	return pluginBuildPackageCmd
 }
