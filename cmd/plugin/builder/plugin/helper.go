@@ -4,6 +4,7 @@
 package plugin
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,7 +34,12 @@ func pushImage(image, filePath string) error {
 	return errors.Wrapf(err, "output: %s", string(output))
 }
 
-func convertImageToArchive(image, archivePath string) error {
+func copyArchiveToRepo(imageRepo, archivePath string) error {
+	output, err := exec.Command("imgpkg", "copy", "--tar", archivePath, "--to-repo", imageRepo).CombinedOutput()
+	return errors.Wrapf(err, "output: %s", string(output))
+}
+
+func copyImageToArchive(image, archivePath string) error {
 	err := os.MkdirAll(filepath.Dir(archivePath), 0755)
 	if err != nil {
 		return err
@@ -41,4 +47,9 @@ func convertImageToArchive(image, archivePath string) error {
 
 	output, err := exec.Command("imgpkg", "copy", "-i", image, "--to-tar", archivePath).CombinedOutput()
 	return errors.Wrapf(err, "output: %s", string(output))
+}
+
+func getPluginArchiveRelativePath(plugin cli.Plugin, osArch cli.Arch, version string) string {
+	pluginTarFileName := fmt.Sprintf("%s-%s.tar.gz", plugin.Name, osArch.String())
+	return filepath.Join(osArch.OS(), osArch.Arch(), plugin.Target, plugin.Name, version, pluginTarFileName)
 }

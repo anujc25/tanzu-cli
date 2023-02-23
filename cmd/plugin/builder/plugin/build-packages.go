@@ -56,8 +56,7 @@ func (bpo *BuildPluginPackageOptions) BuildPluginPackages() error {
 					continue
 				}
 
-				pluginTarFileName := fmt.Sprintf("%s-%s.tar.gz", pluginManifest.Plugins[i].Name, osArch.String())
-				pluginTarFilePath := filepath.Join(bpo.PackageArtifactDir, osArch.OS(), osArch.Arch(), pluginManifest.Plugins[i].Target, pluginManifest.Plugins[i].Name, version, pluginTarFileName)
+				pluginTarFilePath := filepath.Join(bpo.PackageArtifactDir, getPluginArchiveRelativePath(pluginManifest.Plugins[i], osArch, version))
 				image := fmt.Sprintf("%s/plugins/%s/%s/%s:%s", bpo.LocalOCIRegistry, osArch.OS(), osArch.Arch(), pluginManifest.Plugins[i].Name, version)
 
 				log.Infof("Generating plugin package for 'plugin:%s' 'target:%s' 'os:%s' 'arch:%s' 'version:%s'", pluginManifest.Plugins[i].Name, pluginManifest.Plugins[i].Target, osArch.OS(), osArch.Arch(), version)
@@ -67,7 +66,7 @@ func (bpo *BuildPluginPackageOptions) BuildPluginPackages() error {
 					return errors.Wrapf(err, "unable to publish package for plugin: %s, target: %s, os: %s, arch: %s, version: %s", pluginManifest.Plugins[i].Name, pluginManifest.Plugins[i].Target, osArch.OS(), osArch.Arch(), version)
 				}
 
-				err = convertImageToArchive(image, pluginTarFilePath)
+				err = copyImageToArchive(image, pluginTarFilePath)
 				if err != nil {
 					return errors.Wrapf(err, "unable to generate package for plugin: %s, target: %s, os: %s, arch: %s, version: %s", pluginManifest.Plugins[i].Name, pluginManifest.Plugins[i].Target, osArch.OS(), osArch.Arch(), version)
 				}
