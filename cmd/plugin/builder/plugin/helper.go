@@ -31,8 +31,18 @@ func readPluginManifest(pluginManifestFile string) (*cli.Manifest, error) {
 	return pluginManifest, nil
 }
 
+func resolveImage(image string) error {
+	output, err := exec.Command("imgpkg", "tag", "resolve", "-i", image).CombinedOutput()
+	return errors.Wrapf(err, "output: %s", string(output))
+}
+
 func pushImage(image, filePath string) error {
 	output, err := exec.Command("imgpkg", "push", "-i", image, "-f", filePath).CombinedOutput()
+	return errors.Wrapf(err, "output: %s", string(output))
+}
+
+func pullImage(image, dirPath string) error {
+	output, err := exec.Command("imgpkg", "pull", "-i", image, "-o", dirPath).CombinedOutput()
 	return errors.Wrapf(err, "output: %s", string(output))
 }
 

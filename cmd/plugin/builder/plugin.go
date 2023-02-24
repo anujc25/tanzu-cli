@@ -24,6 +24,7 @@ func NewPluginCmd() *cobra.Command {
 		newPluginBuildCmd(),
 		newPluginBuildPackageCmd(),
 		newPluginPublishPackageCmd(),
+		newPluginInventoryCmd(),
 	)
 	return pluginCmd
 }
@@ -65,6 +66,7 @@ func newPluginBuildCmd() *cobra.Command {
 
   # Build only foo plugin under 'cmd/plugin' directory for all supported os-arch
   tanzu builder plugin build --path ./cmd/plugin --version v0.0.2 --os-arch all --match foo`,
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			compileArgs := &command.PluginCompileArgs{
 				Match:         pbFlags.Match,
@@ -94,9 +96,10 @@ func newPluginBuildPackageCmd() *cobra.Command {
 	var pbpFlags = &pluginBuildPackageFlags{}
 
 	var pluginBuildPackageCmd = &cobra.Command{
-		Use:   "build-package",
-		Short: "Build plugin packages",
-		Long:  "Build plugin packages OCI image as tar.gz file that can be published to any repository",
+		Use:          "build-package",
+		Short:        "Build plugin packages",
+		Long:         "Build plugin packages OCI image as tar.gz file that can be published to any repository",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			bppArgs := &plugin.BuildPluginPackageOptions{
 				BinaryArtifactDir:  pbpFlags.BinaryArtifactDir,
@@ -118,9 +121,10 @@ func newPluginPublishPackageCmd() *cobra.Command {
 	var pppFlags = &pluginPublishPackageFlags{}
 
 	var pluginBuildPackageCmd = &cobra.Command{
-		Use:   "publish-package",
-		Short: "Publish plugin packages",
-		Long:  "Publish plugin packages as OCI image to specified repository",
+		Use:          "publish-package",
+		Short:        "Publish plugin packages",
+		Long:         "Publish plugin packages as OCI image to specified repository",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			bppArgs := &plugin.PublishPluginPackageOptions{
 				PackageArtifactDir: pppFlags.PackageArtifactDir,

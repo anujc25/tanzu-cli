@@ -23,23 +23,6 @@ func TestClient(t *testing.T) {
 	RunSpecs(t, "Plugin Inventory Suite")
 }
 
-const createTableStmt = `
-CREATE TABLE IF NOT EXISTS "PluginBinaries" (
-	"PluginName"         TEXT NOT NULL,
-	"Target"             TEXT NOT NULL,
-	"RecommendedVersion" TEXT NOT NULL,
-	"Version"            TEXT NOT NULL,
-	"Hidden"             INTEGER NOT NULL,
-	"Description"        TEXT NOT NULL,
-	"Publisher"          TEXT NOT NULL,
-	"Vendor"             TEXT NOT NULL,
-	"OS"                 TEXT NOT NULL,
-	"Architecture"       TEXT NOT NULL,
-	"Digest"             TEXT NOT NULL,
-	"URI"                TEXT NOT NULL,
-	PRIMARY KEY("PluginName", "Target", "Version", "OS", "Architecture")
-);`
-
 const createPluginsStmt = `
 INSERT INTO PluginBinaries VALUES(
 	'management-cluster',
@@ -139,10 +122,10 @@ var _ = Describe("Unit tests for plugin inventory", func() {
 				Expect(err).To(BeNil(), "unable to create temporary directory")
 
 				// Create empty file for the DB
-				dbFile, err = os.Create(filepath.Join(tmpDir, sqliteDBFileName))
+				dbFile, err = os.Create(filepath.Join(tmpDir, SQliteDBFileName))
 				Expect(err).To(BeNil())
 
-				inventory = NewSQLiteInventory(tmpDir, tmpDir)
+				inventory = NewSQLiteInventory(dbFile.Name(), tmpDir)
 			})
 			AfterEach(func() {
 				os.RemoveAll(tmpDir)
@@ -159,7 +142,7 @@ var _ = Describe("Unit tests for plugin inventory", func() {
 				Expect(err).To(BeNil(), "unable to create temporary directory")
 
 				// Create DB file
-				dbFile, err = os.Create(filepath.Join(tmpDir, sqliteDBFileName))
+				dbFile, err = os.Create(filepath.Join(tmpDir, SQliteDBFileName))
 				Expect(err).To(BeNil())
 				// Open DB with the sqlite driver
 				db, err := sql.Open("sqlite3", dbFile.Name())
@@ -167,10 +150,10 @@ var _ = Describe("Unit tests for plugin inventory", func() {
 				defer db.Close()
 
 				// Create the table but don't add any rows
-				_, err = db.Exec(createTableStmt)
+				_, err = db.Exec(CreateTablesSchema)
 				Expect(err).To(BeNil(), "failed to create DB table for testing")
 
-				inventory = NewSQLiteInventory(tmpDir, tmpDir)
+				inventory = NewSQLiteInventory(dbFile.Name(), tmpDir)
 			})
 			AfterEach(func() {
 				os.RemoveAll(tmpDir)
@@ -187,7 +170,7 @@ var _ = Describe("Unit tests for plugin inventory", func() {
 				Expect(err).To(BeNil(), "unable to create temporary directory")
 
 				// Create DB file
-				dbFile, err = os.Create(filepath.Join(tmpDir, sqliteDBFileName))
+				dbFile, err = os.Create(filepath.Join(tmpDir, SQliteDBFileName))
 				Expect(err).To(BeNil())
 				// Open DB with the sqlite driver
 				db, err := sql.Open("sqlite3", dbFile.Name())
@@ -195,14 +178,14 @@ var _ = Describe("Unit tests for plugin inventory", func() {
 				defer db.Close()
 
 				// Create the table
-				_, err = db.Exec(createTableStmt)
+				_, err = db.Exec(CreateTablesSchema)
 				Expect(err).To(BeNil(), "failed to create DB table for testing")
 
 				// Add a plugin entry to the DB
 				_, err = db.Exec(createPluginsStmt)
 				Expect(err).To(BeNil(), "failed to create plugin for testing")
 
-				inventory = NewSQLiteInventory(tmpDir, tmpDir)
+				inventory = NewSQLiteInventory(dbFile.Name(), tmpDir)
 			})
 			AfterEach(func() {
 				os.RemoveAll(tmpDir)
@@ -375,7 +358,7 @@ var _ = Describe("Unit tests for plugin inventory", func() {
 				Expect(err).To(BeNil(), "unable to create temporary directory")
 
 				// Create DB file
-				dbFile, err = os.Create(filepath.Join(tmpDir, sqliteDBFileName))
+				dbFile, err = os.Create(filepath.Join(tmpDir, SQliteDBFileName))
 				Expect(err).To(BeNil())
 				// Open DB with the sqlite driver
 				db, err := sql.Open("sqlite3", dbFile.Name())
@@ -383,7 +366,7 @@ var _ = Describe("Unit tests for plugin inventory", func() {
 				defer db.Close()
 
 				// Create the table
-				_, err = db.Exec(createTableStmt)
+				_, err = db.Exec(CreateTablesSchema)
 				Expect(err).To(BeNil(), "failed to create DB table for testing")
 
 				// Add a plugin entry to the DB

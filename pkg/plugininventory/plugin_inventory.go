@@ -21,6 +21,10 @@ type PluginInventory interface {
 
 	// GetPlugins returns the plugins found in the inventory that match the provided filter.
 	GetPlugins(*PluginInventoryFilter) ([]*PluginInventoryEntry, error)
+
+	// CreateSchema creates table schemas to the provided database.
+	// returns error if table creation fails for any reason
+	CreateSchema() error
 }
 
 // PluginInventoryEntry represents the inventory information

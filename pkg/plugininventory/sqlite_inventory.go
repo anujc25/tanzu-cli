@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	// Import the sqlite3 driver
@@ -33,9 +32,9 @@ type SQLiteInventory struct {
 }
 
 const (
-	// sqliteDBFileName is the name of the DB file that is stored in
+	// SQliteDBFileName is the name of the DB file that is stored in
 	// the OCI image describing the inventory of plugins.
-	sqliteDBFileName = "plugin_inventory.db"
+	SQliteDBFileName = "plugin_inventory.db"
 
 	// querySelectClause is the SELECT section of the SQL query to be used when querying the inventory DB.
 	querySelectClause = "SELECT PluginName,Target,RecommendedVersion,Version,Hidden,Description,Publisher,Vendor,OS,Architecture,Digest,URI FROM PluginBinaries"
@@ -62,10 +61,10 @@ type inventoryDBRow struct {
 	uri                string
 }
 
-// NewSQLiteInventory returns a new PluginInventory connected to the data found at 'inventoryDir'.
-func NewSQLiteInventory(inventoryDir, prefix string) PluginInventory {
+// NewSQLiteInventory returns a new PluginInventory connected to the data found at 'inventoryFile'.
+func NewSQLiteInventory(inventoryFile, prefix string) PluginInventory {
 	return &SQLiteInventory{
-		inventoryFile: filepath.Join(inventoryDir, sqliteDBFileName),
+		inventoryFile: inventoryFile,
 		uriPrefix:     prefix,
 	}
 }
@@ -316,4 +315,21 @@ func appendPlugin(allPlugins []*PluginInventoryEntry, plugin *PluginInventoryEnt
 	}
 	allPlugins = append(allPlugins, plugin)
 	return allPlugins
+}
+
+// CreateSchema creates table schemas to the provided database.
+// returns error if table creation fails for any reason
+func (b *SQLiteInventory) CreateSchema() error {
+	db, err := sql.Open("sqlite3", b.inventoryFile)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open the DB at '%s'", b.inventoryFile)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(CreateTablesSchema)
+	if err != nil {
+		return errors.Wrap(err, "error while creating tables to the database")
+	}
+
+	return nil
 }

@@ -261,6 +261,10 @@ func (stub *stubInventory) GetPlugins(filter *plugininventory.PluginInventoryFil
 	return matchingEntries, nil
 }
 
+func (stub *stubInventory) CreateSchema() error {
+	return nil
+}
+
 var _ = Describe("Unit tests for DB-backed OCI discovery", func() {
 	var (
 		err             error
