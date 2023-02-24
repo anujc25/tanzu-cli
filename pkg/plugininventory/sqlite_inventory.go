@@ -7,7 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"path/filepath"
+	"strconv"
 	"strings"
 
 	// Import the sqlite3 driver
@@ -33,9 +33,9 @@ type SQLiteInventory struct {
 }
 
 const (
-	// sqliteDBFileName is the name of the DB file that is stored in
+	// SQliteDBFileName is the name of the DB file that is stored in
 	// the OCI image describing the inventory of plugins.
-	sqliteDBFileName = "plugin_inventory.db"
+	SQliteDBFileName = "plugin_inventory.db"
 
 	// querySelectClause is the SELECT section of the SQL query to be used when querying the inventory DB.
 	querySelectClause = "SELECT PluginName,Target,RecommendedVersion,Version,Hidden,Description,Publisher,Vendor,OS,Architecture,Digest,URI FROM PluginBinaries"
@@ -62,10 +62,10 @@ type inventoryDBRow struct {
 	uri                string
 }
 
-// NewSQLiteInventory returns a new PluginInventory connected to the data found at 'inventoryDir'.
-func NewSQLiteInventory(inventoryDir, prefix string) PluginInventory {
+// NewSQLiteInventory returns a new PluginInventory connected to the data found at 'inventoryFile'.
+func NewSQLiteInventory(inventoryFile, prefix string) PluginInventory {
 	return &SQLiteInventory{
-		inventoryFile: filepath.Join(inventoryDir, sqliteDBFileName),
+		inventoryFile: inventoryFile,
 		uriPrefix:     prefix,
 	}
 }
@@ -207,7 +207,7 @@ func (b *SQLiteInventory) extractPluginsFromRows(rows *sql.Rows) ([]*PluginInven
 			return allPlugins, err
 		}
 
-		target := convertTargetFromDB(row.target)
+		target := configtypes.StringToTarget(strings.ToLower(row.target))
 		pluginIDFromRow := catalog.PluginNameTarget(row.name, target)
 		if currentPluginID != pluginIDFromRow {
 			// Found a new plugin.
@@ -220,6 +220,7 @@ func (b *SQLiteInventory) extractPluginsFromRows(rows *sql.Rows) ([]*PluginInven
 			}
 			currentPluginID = pluginIDFromRow
 
+			hidden, _ := strconv.ParseBool(row.hidden)
 			currentPlugin = &PluginInventoryEntry{
 				Name:               row.name,
 				Target:             target,
@@ -227,6 +228,7 @@ func (b *SQLiteInventory) extractPluginsFromRows(rows *sql.Rows) ([]*PluginInven
 				Publisher:          row.publisher,
 				Vendor:             row.vendor,
 				RecommendedVersion: row.recommendedVersion,
+				Hidden:             hidden,
 			}
 			currentVersion = ""
 			artifacts = distribution.Artifacts{}
@@ -290,14 +292,6 @@ func getNextRow(rows *sql.Rows) (*inventoryDBRow, error) {
 	return &row, err
 }
 
-func convertTargetFromDB(target string) configtypes.Target {
-	target = strings.ToLower(target)
-	if target == "global" {
-		target = ""
-	}
-	return configtypes.StringToTarget(target)
-}
-
 // appendPlugin appends a PluginInventoryEntry to the specified array.
 // This function needs to be used to do post-processing on the new plugin before storing it.
 func appendPlugin(allPlugins []*PluginInventoryEntry, plugin *PluginInventoryEntry) []*PluginInventoryEntry {
@@ -316,4 +310,76 @@ func appendPlugin(allPlugins []*PluginInventoryEntry, plugin *PluginInventoryEnt
 	}
 	allPlugins = append(allPlugins, plugin)
 	return allPlugins
+}
+
+// CreateSchema creates table schemas to the provided database.
+// returns error if table creation fails for any reason
+func (b *SQLiteInventory) CreateSchema() error {
+	db, err := sql.Open("sqlite3", b.inventoryFile)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open the DB at '%s'", b.inventoryFile)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(CreateTablesSchema)
+	if err != nil {
+		return errors.Wrap(err, "error while creating tables to the database")
+	}
+
+	return nil
+}
+
+// InsertPlugin inserts plugin to the inventory
+func (b *SQLiteInventory) InsertPlugin(pluginInventoryEntry *PluginInventoryEntry) error {
+	db, err := sql.Open("sqlite3", b.inventoryFile)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open the DB from '%s' file", b.inventoryFile)
+	}
+	defer db.Close()
+
+	for version, artifacts := range pluginInventoryEntry.Artifacts {
+		for _, a := range artifacts {
+			row := inventoryDBRow{
+				name:               pluginInventoryEntry.Name,
+				target:             string(pluginInventoryEntry.Target),
+				recommendedVersion: "",
+				version:            version,
+				hidden:             strconv.FormatBool(pluginInventoryEntry.Hidden),
+				description:        pluginInventoryEntry.Description,
+				publisher:          pluginInventoryEntry.Publisher,
+				vendor:             pluginInventoryEntry.Vendor,
+				os:                 a.OS,
+				arch:               a.Arch,
+				digest:             a.Digest,
+				uri:                a.Image,
+			}
+
+			_, err = db.Exec("INSERT INTO PluginBinaries VALUES(?,?,?,?,?,?,?,?,?,?,?,?);", row.name, row.target, row.recommendedVersion, row.version, row.hidden, row.description, row.publisher, row.vendor, row.os, row.arch, row.digest, row.uri)
+			if err != nil {
+				return errors.Wrapf(err, "unable to insert plugin row %v", row)
+			}
+		}
+	}
+	return nil
+}
+
+// UpdatePluginActivationState updates plugin metadata to activate or deactivate plugin
+func (b *SQLiteInventory) UpdatePluginActivationState(pluginInventoryEntry *PluginInventoryEntry) error {
+	db, err := sql.Open("sqlite3", b.inventoryFile)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open the DB from '%s' file", b.inventoryFile)
+	}
+	defer db.Close()
+
+	for version := range pluginInventoryEntry.Artifacts {
+		result, err := db.Exec("UPDATE PluginBinaries SET hidden = ? WHERE PluginName = ? AND Target = ? AND Version = ? AND Publisher = ? AND Vendor = ? ;", strconv.FormatBool(pluginInventoryEntry.Hidden), pluginInventoryEntry.Name, string(pluginInventoryEntry.Target), version, pluginInventoryEntry.Publisher, pluginInventoryEntry.Vendor)
+		if err != nil {
+			return errors.Wrapf(err, "unable to update plugin %v_%v", pluginInventoryEntry.Name, string(pluginInventoryEntry.Target))
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return errors.Errorf("unable to update plugin %v_%v", pluginInventoryEntry.Name, string(pluginInventoryEntry.Target))
+		}
+	}
+	return nil
 }
