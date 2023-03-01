@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aunum/log"
 	"github.com/gobwas/glob"
 	"gopkg.in/yaml.v3"
 
@@ -26,11 +25,12 @@ import (
 
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/types"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
+	"github.com/vmware-tanzu/tanzu-plugin-runtime/log"
 )
 
 func init() {
 	// TODO, aunum is an old logging library, need to replace w/ klog, but we want timestamps immediately for build optimizations, so one time hack.
-	log.Timestamps = true
+	// log.SetTimestamp(true)
 }
 
 var (
@@ -191,7 +191,6 @@ func Compile(compileArgs *PluginCompileArgs) error {
 	close(plugins)
 	close(fatalErrors)
 
-	log.BreakHard()
 	hasFailed := false
 
 	var exerr *exec.ExitError
@@ -218,7 +217,7 @@ func Compile(compileArgs *PluginCompileArgs) error {
 		return err
 	}
 
-	log.Success("successfully built local repository")
+	log.Info("successfully built local repository")
 	return nil
 }
 
@@ -303,7 +302,7 @@ func buildPlugin(path, id string) (plugin, error) {
 		p.modPath = ""
 	}
 
-	log.Debugy("plugin", p)
+	log.Infof("plugin %v", p)
 
 	err = p.compile()
 	if err != nil {

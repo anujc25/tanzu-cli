@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aunum/log"
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -27,6 +26,7 @@ import (
 	"github.com/vmware-tanzu/tanzu-cli/pkg/discovery"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/pluginmanager"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/pluginsupplier"
+	"github.com/vmware-tanzu/tanzu-plugin-runtime/log"
 )
 
 var (
@@ -225,9 +225,9 @@ func newInstallPluginCmd() *cobra.Command {
 					return err
 				}
 				if pluginName == cli.AllPlugins {
-					log.Successf("successfully installed all plugins")
+					log.Infof("successfully installed all plugins")
 				} else {
-					log.Successf("successfully installed '%s' plugin", pluginName)
+					log.Infof("successfully installed '%s' plugin", pluginName)
 				}
 				return nil
 			}
@@ -245,7 +245,7 @@ func newInstallPluginCmd() *cobra.Command {
 					if err != nil {
 						return err
 					}
-					log.Successf("successfully installed all plugins")
+					log.Infof("successfully installed all plugins")
 					return nil
 				}
 
@@ -261,7 +261,7 @@ func newInstallPluginCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			log.Successf("successfully installed '%s' plugin", pluginName)
+			log.Infof("successfully installed '%s' plugin", pluginName)
 			return nil
 		},
 	}
@@ -299,7 +299,7 @@ func newUpgradePluginCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			log.Successf("successfully upgraded plugin '%s'", pluginName)
+			log.Infof("successfully upgraded plugin '%s'", pluginName)
 			return nil
 		},
 	}
@@ -332,7 +332,7 @@ func newDeletePluginCmd() *cobra.Command {
 				return err
 			}
 
-			log.Successf("successfully deleted plugin '%s'", pluginName)
+			log.Infof("successfully deleted plugin '%s'", pluginName)
 			return nil
 		},
 	}
@@ -348,7 +348,7 @@ func newCleanPluginCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			log.Success("successfully cleaned up all plugins")
+			log.Info("successfully cleaned up all plugins")
 			return nil
 		},
 	}
@@ -364,7 +364,7 @@ func newSyncPluginCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			log.Success("Done")
+			log.Info("Done")
 			return nil
 		},
 	}

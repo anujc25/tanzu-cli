@@ -9,13 +9,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/aunum/log"
 	"github.com/pkg/errors"
 
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/helpers"
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/imgpkg"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/utils"
+	"github.com/vmware-tanzu/tanzu-plugin-runtime/log"
 )
 
 type BuildPluginPackageOptions struct {

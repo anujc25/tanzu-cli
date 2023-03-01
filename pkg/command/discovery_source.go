@@ -10,7 +10,6 @@ import (
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/constants"
 
-	"github.com/aunum/log"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -20,6 +19,7 @@ import (
 
 	"github.com/vmware-tanzu/tanzu-cli/pkg/common"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/discovery"
+	"github.com/vmware-tanzu/tanzu-plugin-runtime/log"
 )
 
 var (
@@ -149,7 +149,7 @@ func newAddDiscoverySourceCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			log.Successf("successfully added discovery source %s", discoverySourceName)
+			log.Infof("successfully added discovery source %s", discoverySourceName)
 			return nil
 		},
 	}
@@ -199,7 +199,7 @@ func newUpdateDiscoverySourceCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			log.Successf("updated discovery source %s", discoveryName)
+			log.Infof("updated discovery source %s", discoveryName)
 			return nil
 		},
 	}
@@ -221,7 +221,7 @@ func newDeleteDiscoverySourceCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			log.Successf("deleted discovery source %s", discoveryName)
+			log.Infof("deleted discovery source %s", discoveryName)
 			return nil
 		},
 	}

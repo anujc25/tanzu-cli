@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/aunum/log"
 	"github.com/pkg/errors"
 
 	configtypes "github.com/vmware-tanzu/tanzu-plugin-runtime/config/types"
@@ -19,6 +18,7 @@ import (
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/distribution"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/plugininventory"
+	"github.com/vmware-tanzu/tanzu-plugin-runtime/log"
 )
 
 // InventoryPluginUpdateOptions defines options for inserting plugin to the inventory database

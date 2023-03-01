@@ -14,7 +14,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/aunum/log"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 	"golang.org/x/mod/semver"
@@ -35,6 +34,7 @@ import (
 	"github.com/vmware-tanzu/tanzu-cli/pkg/constants"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/discovery"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/pluginsupplier"
+	"github.com/vmware-tanzu/tanzu-plugin-runtime/log"
 )
 
 const (

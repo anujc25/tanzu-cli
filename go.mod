@@ -2,12 +2,14 @@ module github.com/vmware-tanzu/tanzu-cli
 
 go 1.19
 
-replace cloud.google.com/go => cloud.google.com/go v0.102.1
+replace (
+	cloud.google.com/go => cloud.google.com/go v0.102.1
+	github.com/vmware-tanzu/tanzu-plugin-runtime => github.com/anujc25/tanzu-plugin-runtime v0.0.0-20230301230210-5bbd7de2dfd7
+)
 
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/adrg/xdg v0.4.0
-	github.com/aunum/log v0.0.0-20200821225356-38d2e2c8b489
 	github.com/cppforlife/go-cli-ui v0.0.0-20200716203538-1e47f820817f
 	github.com/fatih/color v1.13.0
 	github.com/gobwas/glob v0.2.3
@@ -68,7 +70,6 @@ require (
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.1 // indirect

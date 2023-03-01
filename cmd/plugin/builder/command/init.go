@@ -8,9 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/aunum/log"
-
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/template"
+	"github.com/vmware-tanzu/tanzu-plugin-runtime/log"
 )
 
 const (
@@ -45,6 +44,6 @@ func Initialize(name, repoType string, dryRun bool) error {
 	if err != nil {
 		return fmt.Errorf("%s -- %s", err, string(b))
 	}
-	log.Success("successfully created repository")
+	log.Info("successfully created repository")
 	return nil
 }

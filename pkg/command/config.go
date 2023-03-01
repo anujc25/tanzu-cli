@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aunum/log"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -20,6 +19,7 @@ import (
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/config"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/pluginsupplier"
+	"github.com/vmware-tanzu/tanzu-plugin-runtime/log"
 )
 
 // ConfigLiterals used with set/unset commands
@@ -236,7 +236,7 @@ var initConfigCmd = &cobra.Command{
 			return err
 		}
 
-		log.Success("successfully initialized the config")
+		log.Info("successfully initialized the config")
 		return nil
 	},
 }

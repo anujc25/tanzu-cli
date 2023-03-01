@@ -9,9 +9,8 @@ import (
 	"errors"
 	"os"
 
-	"github.com/aunum/log"
-
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/template"
+	"github.com/vmware-tanzu/tanzu-plugin-runtime/log"
 )
 
 // looksLikeARepo tries to verify we are running from the root of a repo or
@@ -53,7 +52,7 @@ func AddPlugin(name, description string, dryRun bool) error {
 			return err
 		}
 	}
-	log.Success("successfully created plugin")
+	log.Info("successfully created plugin")
 
 	return nil
 }
