@@ -25,6 +25,7 @@ func NewPluginCmd() *cobra.Command {
 		newPluginBuildCmd(),
 		newPluginBuildPackageCmd(),
 		newPluginPublishPackageCmd(),
+		newPluginDownloadPackageCmd(),
 	)
 	return pluginCmd
 }
@@ -51,6 +52,12 @@ type pluginPublishPackageFlags struct {
 	Vendor             string
 	DryRun             bool
 	Override           bool
+}
+
+type pluginDownloadPackageFlags struct {
+	PackageArtifactDir string
+	SourceRepository   string
+	ManifestFile       string
 }
 
 func newPluginBuildCmd() *cobra.Command {
@@ -152,4 +159,32 @@ func newPluginPublishPackageCmd() *cobra.Command {
 	_ = pluginBuildPackageCmd.MarkFlagRequired("publisher")
 
 	return pluginBuildPackageCmd
+}
+
+func newPluginDownloadPackageCmd() *cobra.Command {
+	var pdpFlags = &pluginDownloadPackageFlags{}
+
+	var pluginDownloadPackageCmd = &cobra.Command{
+		Use:   "download-package",
+		Short: "Download plugin packages",
+		Long:  "Download plugin packages from source repository as tar.gz file that can be published to any repository",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dppArgs := &plugin.DownloadPluginPackageOptions{
+				PackageArtifactDir: pdpFlags.PackageArtifactDir,
+				SourceRepository:   pdpFlags.SourceRepository,
+				PluginManifestFile: pdpFlags.ManifestFile,
+				ImgpkgOptions:      imgpkg.NewImgpkgCLIWrapper(),
+			}
+			return dppArgs.DownloadPluginPackages()
+		},
+	}
+
+	pluginDownloadPackageCmd.Flags().StringVarP(&pdpFlags.ManifestFile, "manifest", "", "", "manifest file specifying plugin details that needs to be processed")
+	pluginDownloadPackageCmd.Flags().StringVarP(&pdpFlags.PackageArtifactDir, "package-artifacts", "", "./artifacts/packages", "plugin package artifacts directory")
+	pluginDownloadPackageCmd.Flags().StringVarP(&pdpFlags.SourceRepository, "source-repository", "", "", "source repository to use while downloading packages")
+
+	_ = pluginDownloadPackageCmd.MarkFlagRequired("manifest")
+	_ = pluginDownloadPackageCmd.MarkFlagRequired("source-repository")
+
+	return pluginDownloadPackageCmd
 }
