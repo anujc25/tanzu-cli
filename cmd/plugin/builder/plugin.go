@@ -50,6 +50,7 @@ type pluginPublishPackageFlags struct {
 	Publisher          string
 	Vendor             string
 	DryRun             bool
+	Override           bool
 }
 
 func newPluginBuildCmd() *cobra.Command {
@@ -132,6 +133,7 @@ func newPluginPublishPackageCmd() *cobra.Command {
 				Vendor:             pppFlags.Vendor,
 				Repository:         pppFlags.Repository,
 				DryRun:             pppFlags.DryRun,
+				Override:           pppFlags.Override,
 				ImgpkgOptions:      imgpkg.NewImgpkgCLIWrapper(),
 			}
 			return bppArgs.PublishPluginPackages()
@@ -143,6 +145,7 @@ func newPluginPublishPackageCmd() *cobra.Command {
 	pluginBuildPackageCmd.Flags().StringVarP(&pppFlags.Vendor, "vendor", "", "", "name of the vendor")
 	pluginBuildPackageCmd.Flags().StringVarP(&pppFlags.Publisher, "publisher", "", "", "name of the publisher")
 	pluginBuildPackageCmd.Flags().BoolVarP(&pppFlags.DryRun, "dry-run", "", false, "show commands without publishing plugin packages")
+	pluginBuildPackageCmd.Flags().BoolVarP(&pppFlags.Override, "override", "", false, "override the plugin oci image if already exists")
 
 	_ = pluginBuildPackageCmd.MarkFlagRequired("repository")
 	_ = pluginBuildPackageCmd.MarkFlagRequired("vendor")

@@ -24,6 +24,7 @@ type PublishPluginPackageOptions struct {
 	Repository         string
 	DryRun             bool
 	ImgpkgOptions      imgpkg.ImgpkgWrapper
+	Override           bool
 
 	pluginManifestFile string
 }
@@ -53,6 +54,15 @@ func (ppo *PublishPluginPackageOptions) PublishPluginPackages() error {
 
 				imageRepo := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s", ppo.Repository, ppo.Vendor, ppo.Publisher, osArch.OS(), osArch.Arch(), pluginManifest.Plugins[i].Target, pluginManifest.Plugins[i].Name)
 				log.Infof("Publishing plugin 'name:%s' 'target:%s' 'os:%s' 'arch:%s' 'version:%s'", pluginManifest.Plugins[i].Name, pluginManifest.Plugins[i].Target, osArch.OS(), osArch.Arch(), version)
+
+				if !ppo.Override && !ppo.DryRun {
+					// check if the image already exists or not. If exist throw an error
+					imagePath := fmt.Sprintf("%s:%s", imageRepo, version)
+					err := ppo.ImgpkgOptions.ResolveImage(imagePath)
+					if err == nil {
+						return errors.Errorf("%q image already exists on the repository. Use `--override` flag to override the content", imagePath)
+					}
+				}
 
 				if ppo.DryRun {
 					log.Infof("Command: 'imgpkg copy --tar %s --to-repo %s", pluginTarFilePath, imageRepo)
