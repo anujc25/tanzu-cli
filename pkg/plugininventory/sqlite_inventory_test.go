@@ -28,7 +28,7 @@ func TestClient(t *testing.T) {
 const createPluginsStmt = `
 INSERT INTO PluginBinaries VALUES(
 	'management-cluster',
-	'k8s',
+	'kubernetes',
 	'v0.28.0',
 	'v0.28.0',
 	'false',
@@ -41,7 +41,7 @@ INSERT INTO PluginBinaries VALUES(
 	'vmware/tkg/linux/amd64/k8s/management-cluster:v0.28.0');
 INSERT INTO PluginBinaries VALUES(
 	'management-cluster',
-	'k8s',
+	'kubernetes',
 	'v0.28.0',
 	'v0.28.0',
 	'false',
@@ -54,7 +54,7 @@ INSERT INTO PluginBinaries VALUES(
 	'vmware/tkg/darwin/amd64/k8s/management-cluster:v0.28.0');
 INSERT INTO PluginBinaries VALUES(
 	'management-cluster',
-	'k8s',
+	'kubernetes',
 	'v0.28.0',
 	'v0.26.0',
 	'false',
@@ -82,7 +82,7 @@ INSERT INTO PluginBinaries VALUES(
 const createPluginTMCNoRecommendedVersionStmt = `
 INSERT INTO PluginBinaries VALUES(
 	'management-cluster',
-	'tmc',
+	'mission-control',
 	'',
 	'v0.0.1',
 	'false',
@@ -95,7 +95,7 @@ INSERT INTO PluginBinaries VALUES(
 	'vmware/tmc/linux/amd64/tmc/management-cluster:v0.0.1');
 INSERT INTO PluginBinaries VALUES(
 	'management-cluster',
-	'tmc',
+	'mission-control',
 	'',
 	'v0.0.2',
 	'false',
@@ -113,78 +113,89 @@ INSERT INTO PluginGroups VALUES(
 	'tkg',
 	'2.1.0',
 	'management-cluster',
-	'k8s',
-	'v0.28.0');
+	'kubernetes',
+	'v0.28.0',
+	'false');
 INSERT INTO PluginGroups VALUES(
 	'vmware',
 	'tkg',
 	'2.1.0',
 	'package',
-	'k8s',
-	'v0.28.0');
+	'kubernetes',
+	'v0.28.0',
+	'false');
 INSERT INTO PluginGroups VALUES(
 	'vmware',
 	'tkg',
 	'2.1.0',
 	'feature',
-	'k8s',
-	'v0.28.0');
+	'kubernetes',
+	'v0.28.0',
+	'false');
 INSERT INTO PluginGroups VALUES(
 	'vmware',
 	'tkg',
 	'2.1.0',
 	'kubernetes-release',
-	'k8s',
-	'v0.28.0');
+	'kubernetes',
+	'v0.28.0',
+	'false');
 INSERT INTO PluginGroups VALUES(
 	'vmware',
 	'tkg',
 	'2.1.0',
 	'isolated-cluster',
-	'k8s',
-	'v0.28.0');
+	'kubernetes',
+	'v0.28.0',
+	'false');
 INSERT INTO PluginGroups VALUES(
 	'vmware',
 	'tkg',
 	'1.6.0',
 	'management-cluster',
-	'k8s',
-	'v0.26.0');
+	'kubernetes',
+	'v0.26.0',
+	'false');
 INSERT INTO PluginGroups VALUES(
 	'vmware',
 	'tkg',
 	'1.6.0',
 	'package',
-	'k8s',
-	'v0.26.0');
+	'kubernetes',
+	'v0.26.0',
+	'false');
 INSERT INTO PluginGroups VALUES(
 	'vmware',
 	'tkg',
 	'1.6.0',
 	'feature',
-	'k8s',
-	'v0.26.0');
+	'kubernetes',
+	'v0.26.0',
+	'false');
 INSERT INTO PluginGroups VALUES(
 	'vmware',
 	'tkg',
 	'1.6.0',
 	'kubernetes-release',
-	'k8s',
-	'v0.26.0');
+	'kubernetes',
+	'v0.26.0',
+	'false');
 INSERT INTO PluginGroups VALUES(
 	'independent',
 	'other',
 	'mygroup',
 	'plugin1',
-	'k8s',
-	'v0.1.0');
+	'kubernetes',
+	'v0.1.0',
+	'false');
 INSERT INTO PluginGroups VALUES(
 	'independent',
 	'other',
 	'mygroup',
 	'plugin2',
-	'tmc',
-	'v0.2.0');
+	'mission-control',
+	'v0.2.0',
+	'false');
 `
 
 var _ = Describe("Unit tests for plugin inventory", func() {

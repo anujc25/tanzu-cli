@@ -32,6 +32,9 @@ type PluginInventory interface {
 	// InsertPlugin inserts plugin to the inventory
 	InsertPlugin(pluginInventoryEntry *PluginInventoryEntry) error
 
+	// InsertPluginGroup inserts plugin-group to the inventory
+	InsertPluginGroup(pg *PluginGroup, override bool) error
+
 	// UpdatePluginActivationState updates plugin metadata to activate or deactivate plugin
 	UpdatePluginActivationState(pluginInventoryEntry *PluginInventoryEntry) error
 }
@@ -87,6 +90,8 @@ type PluginIdentifier struct {
 	Target configtypes.Target
 	// Version is the version for the plugin
 	Version string
+	// Mandatory specifies the plugin is required to be installed or not
+	Mandatory bool
 }
 
 // PluginGroup represents a list of plugins.

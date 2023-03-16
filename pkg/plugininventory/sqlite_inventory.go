@@ -73,6 +73,7 @@ type groupDBRow struct {
 	pluginName string
 	target     string
 	version    string
+	mandatory  string
 }
 
 // NewSQLiteInventory returns a new PluginInventory connected to the data found at 'inventoryFile'.
@@ -157,17 +158,15 @@ func createWhereClause(filter *PluginInventoryFilter) (string, error) {
 			whereClause = fmt.Sprintf("%s PluginName='%s' AND", whereClause, filter.Name)
 		}
 		if filter.Target != "" {
-			var target string
 			switch filter.Target {
 			case configtypes.TargetK8s:
-				target = "k8s"
 			case configtypes.TargetTMC:
-				target = "tmc"
+			case configtypes.TargetGlobal:
 			default:
 				return whereClause, fmt.Errorf("invalid target for plugin: %s", string(filter.Target))
 			}
 
-			whereClause = fmt.Sprintf("%s Target='%s' AND", whereClause, target)
+			whereClause = fmt.Sprintf("%s Target='%s' AND", whereClause, filter.Target)
 		}
 		if filter.Version != "" {
 			if filter.Version == cli.VersionLatest {
@@ -463,6 +462,48 @@ func (b *SQLiteInventory) InsertPlugin(pluginInventoryEntry *PluginInventoryEntr
 			if err != nil {
 				return errors.Wrapf(err, "unable to insert plugin row %v", row)
 			}
+		}
+	}
+	return nil
+}
+
+// InsertPluginGroup inserts plugin-group to the inventory
+// specifying override will delete the existing plugin-group and add new one
+func (b *SQLiteInventory) InsertPluginGroup(pg *PluginGroup, override bool) error {
+	db, err := sql.Open("sqlite3", b.inventoryFile)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open the DB from '%s' file", b.inventoryFile)
+	}
+	defer db.Close()
+
+	if override {
+		_, err = db.Exec("DELETE FROM PluginGroups WHERE GroupName = ? AND Publisher = ? AND Vendor = ? ;", pg.Name, pg.Publisher, pg.Vendor)
+		if err != nil {
+			return errors.Wrapf(err, "unable to delete existing plugin-group")
+		}
+	}
+
+	for _, pi := range pg.Plugins {
+		// Verify that the plugin exists in the database before inserting it to PluginGroup table
+		pie, err := b.GetPlugins(&PluginInventoryFilter{Name: pi.Name, Target: pi.Target, Version: pi.Version})
+		if err != nil {
+			return errors.Wrap(err, "error while verifying existence of the plugin in the database")
+		} else if len(pie) == 0 {
+			return errors.Errorf("specified plugin 'name:%s', 'target:%s', 'version:%s' is not present in the database", pi.Name, pi.Target, pi.Version)
+		}
+
+		row := groupDBRow{
+			vendor:     pg.Vendor,
+			publisher:  pg.Publisher,
+			groupName:  pg.Name,
+			pluginName: pi.Name,
+			target:     string(pi.Target),
+			version:    pi.Version,
+			mandatory:  strconv.FormatBool(pi.Mandatory),
+		}
+		_, err = db.Exec("INSERT INTO PluginGroups VALUES(?,?,?,?,?,?,?);", row.vendor, row.publisher, row.groupName, row.pluginName, row.target, row.version, row.groupName)
+		if err != nil {
+			return errors.Wrapf(err, "unable to insert plugin-group row %v", row)
 		}
 	}
 	return nil

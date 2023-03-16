@@ -42,9 +42,10 @@ func newInventoryPluginAddCmd() *cobra.Command {
 	var ipaFlags = &inventoryPluginAddFlags{}
 
 	var pluginAddCmd = &cobra.Command{
-		Use:     "add",
-		Short:   "Add the plugin to the inventory database available on the remote repository",
-		Example: ``,
+		Use:          "add",
+		Short:        "Add the plugin to the inventory database available on the remote repository",
+		SilenceUsage: true,
+		Example:      ``,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			paOptions := inventory.InventoryPluginUpdateOptions{
 				Repository:        ipaFlags.Repository,
@@ -83,11 +84,11 @@ type inventoryPluginActivateDeactivateFlags struct {
 }
 
 func newInventoryPluginActivateCmd() *cobra.Command {
-	pluginDeactivateCmd, flags := getActivateDeactivateBaseCmd()
-	pluginDeactivateCmd.Use = "activate"
-	pluginDeactivateCmd.Short = "Activate the existing plugin in the inventory database available on the remote repository"
-	pluginDeactivateCmd.Example = ""
-	pluginDeactivateCmd.RunE = func(cmd *cobra.Command, args []string) error {
+	pluginActivateCmd, flags := getActivateDeactivateBaseCmd()
+	pluginActivateCmd.Use = "activate"
+	pluginActivateCmd.Short = "Activate the existing plugin in the inventory database available on the remote repository"
+	pluginActivateCmd.Example = ""
+	pluginActivateCmd.RunE = func(cmd *cobra.Command, args []string) error {
 		piOptions := inventory.InventoryPluginUpdateOptions{
 			Repository:        flags.Repository,
 			InventoryImageTag: flags.InventoryImageTag,
@@ -99,7 +100,7 @@ func newInventoryPluginActivateCmd() *cobra.Command {
 		}
 		return piOptions.UpdatePluginActivationState()
 	}
-	return pluginDeactivateCmd
+	return pluginActivateCmd
 }
 
 func newInventoryPluginDeactivateCmd() *cobra.Command {
@@ -126,6 +127,7 @@ func getActivateDeactivateBaseCmd() (*cobra.Command, *inventoryPluginActivateDea
 	var flags = &inventoryPluginActivateDeactivateFlags{}
 
 	var activateDeactivateCmd = &cobra.Command{}
+	activateDeactivateCmd.SilenceUsage = true
 
 	activateDeactivateCmd.Flags().StringVarP(&flags.Repository, "repository", "", "", "repository to publish plugin inventory image")
 	activateDeactivateCmd.Flags().StringVarP(&flags.InventoryImageTag, "plugin-inventory-image-tag", "", "latest", "tag to which plugin inventory image needs to be published")
