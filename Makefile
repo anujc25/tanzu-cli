@@ -233,7 +233,7 @@ start-test-central-repo: stop-test-central-repo ## Starts up a test central repo
 	fi
 	@docker run --rm -d -p 9876:5000 --name central \
 		-v $(ROOT_DIR)/hack/central-repo/registry-content:/var/lib/registry \
-		mirror.gcr.io/library/registry:2 > /dev/null && \
+		mirror.gcr.io/library/registry:2.7.1 > /dev/null && \
 	    echo "Started docker test central repo with images:" && \
 		$(ROOT_DIR)/hack/central-repo/upload-plugins.sh info
 
