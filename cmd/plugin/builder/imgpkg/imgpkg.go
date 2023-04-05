@@ -65,10 +65,19 @@ func (io *ImgpkgOptions) GetFileDigestFromImage(image, fileName string) (string,
 		return "", errors.Wrapf(err, "unable to find image at %q", image)
 	}
 
-	// find the digest of the specified file
-	digest, err := helpers.GetDigest(filepath.Join(tempDir, fileName))
+	filePath := filepath.Join(tempDir, fileName)
+	fi, err := os.Stat(filePath)
 	if err != nil {
-		return "", errors.Wrapf(err, "unable to calculate digest for path %v", filepath.Join(tempDir, fileName))
+		return "", errors.Wrapf(err, "unable to find plugin binary at path %v", filePath)
+	}
+	if fi.Size() == 0 {
+		return "", errors.Wrapf(err, "plugin binary file at path %v is empty", filePath)
+	}
+
+	// find the digest of the specified file
+	digest, err := helpers.GetDigest(filePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to calculate digest for path %v", filePath)
 	}
 	return digest, nil
 }
