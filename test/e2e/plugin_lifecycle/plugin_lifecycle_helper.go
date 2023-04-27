@@ -23,3 +23,17 @@ func SearchAllPluginGroups(tf *framework.Framework) []*framework.PluginGroup {
 	gomega.Expect(err).To(gomega.BeNil(), "should not get any error for plugin search")
 	return pluginGroups
 }
+
+// SearchAllPluginsWithAllVersions runs the plugin search command and returns all the plugins from the search output
+func SearchAllPluginsWithAllVersions(tf *framework.Framework) []*framework.PluginInfo {
+	pluginsSearchList, err := tf.PluginCmd.SearchPlugins("")
+	gomega.Expect(err).To(gomega.BeNil(), "should not get any error for plugin search")
+	return pluginsSearchList
+}
+
+// ListInstalledPlugins runs the plugin list command and returns all the plugins from the list output
+func ListInstalledPlugins(tf *framework.Framework) []*framework.PluginInfo {
+	installedPluginList, err := tf.PluginCmd.ListInstalledPlugins()
+	gomega.Expect(err).To(gomega.BeNil(), "should not get any error for plugin list")
+	return installedPluginList
+}

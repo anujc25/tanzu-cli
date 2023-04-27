@@ -42,6 +42,8 @@ const (
 	UninstallPLuginCmd                  = "%s plugin delete %s --yes"
 	CleanPluginsCmd                     = "%s plugin clean"
 	pluginSyncCmd                       = "%s plugin sync"
+	PluginDownloadBundleCmd             = "%s plugin download-bundle"
+	PluginUploadBundleCmd               = "%s plugin upload-bundle"
 	JSONOutput                          = " -o json"
 	TestPluginsPrefix                   = "test-plugin-"
 	PluginSubCommand                    = "%s %s"
@@ -50,6 +52,7 @@ const (
 	// Central repository
 	TanzuCliE2ETestCentralRepositoryURL      = "TANZU_CLI_E2E_TEST_CENTRAL_REPO_URL"
 	TanzuCliE2ETestLocalCentralRepositoryURL = "TANZU_CLI_E2E_TEST_LOCAL_CENTRAL_REPO_URL"
+	TanzuCliE2ETestAirgappedRepo             = "TANZU_CLI_E2E_AIRGAPPED_REPO"
 
 	// General constants
 	True         = "true"

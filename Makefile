@@ -175,7 +175,9 @@ test: fmt ## Run Tests
 	${GO} test `go list ./... | grep -v test/e2e` -timeout 60m -race -coverprofile coverage.txt ${GOTEST_VERBOSE}
 
 .PHONY: e2e-cli-core ## Execute all CLI Core E2E Tests
-e2e-cli-core: start-test-central-repo e2e-cli-core-all ## Execute all CLI Core E2E Tests
+e2e-cli-core: start-test-central-repo start-airgapped-local-registry e2e-cli-core-all ## Execute all CLI Core E2E Tests
+
+e2e-airgapped-tests-with-repo-setup: start-airgapped-local-registry e2e-airgapped-tests
 
 .PHONY: start-test-central-repo
 start-test-central-repo: stop-test-central-repo ## Starts up a test central repository locally with docker
@@ -191,6 +193,14 @@ start-test-central-repo: stop-test-central-repo ## Starts up a test central repo
 .PHONY: stop-test-central-repo
 stop-test-central-repo: ## Stops and removes the local test central repository
 	@docker container stop central > /dev/null 2>&1 && echo "Stopped docker test central repo" || true
+
+.PHONY: airgapped-local-registry
+start-airgapped-local-registry: stop-airgapped-local-registry
+	docker run -d -p 6001:5000 --name temp-airgapped-local-registry mirror.gcr.io/library/registry:2
+
+.PHONY: stop-airgapped-local-registry
+stop-airgapped-local-registry:
+	docker stop temp-airgapped-local-registry && docker rm -v temp-airgapped-local-registry || true
 
 .PHONY: fmt
 fmt: $(GOIMPORTS) ## Run goimports
