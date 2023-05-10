@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/command"
+	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/docker"
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/imgpkg"
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/plugin"
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
@@ -114,6 +115,7 @@ func newPluginBuildPackageCmd() *cobra.Command {
 				PackageArtifactDir: pbpFlags.PackageArtifactDir,
 				LocalOCIRegistry:   pbpFlags.LocalOCIRepository,
 				ImgpkgOptions:      imgpkg.NewImgpkgCLIWrapper(),
+				DockerOptions:      docker.NewDockerCLIWrapper(),
 			}
 			return bppArgs.BuildPluginPackages()
 		},
@@ -142,6 +144,7 @@ func newPluginPublishPackageCmd() *cobra.Command {
 				Repository:         pppFlags.Repository,
 				DryRun:             pppFlags.DryRun,
 				ImgpkgOptions:      imgpkg.NewImgpkgCLIWrapper(),
+				DockerOptions:      docker.NewDockerCLIWrapper(),
 			}
 			return bppArgs.PublishPluginPackages()
 		},
