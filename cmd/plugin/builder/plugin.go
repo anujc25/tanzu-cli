@@ -44,7 +44,6 @@ type pluginBuildFlags struct {
 type pluginBuildPackageFlags struct {
 	BinaryArtifactDir  string
 	PackageArtifactDir string
-	LocalOCIRepository string
 }
 
 type pluginPublishPackageFlags struct {
@@ -113,7 +112,6 @@ func newPluginBuildPackageCmd() *cobra.Command {
 			bppArgs := &plugin.BuildPluginPackageOptions{
 				BinaryArtifactDir:  pbpFlags.BinaryArtifactDir,
 				PackageArtifactDir: pbpFlags.PackageArtifactDir,
-				LocalOCIRegistry:   pbpFlags.LocalOCIRepository,
 				ImgpkgOptions:      imgpkg.NewImgpkgCLIWrapper(),
 				DockerOptions:      docker.NewDockerCLIWrapper(),
 			}
@@ -123,7 +121,6 @@ func newPluginBuildPackageCmd() *cobra.Command {
 
 	pluginBuildPackageCmd.Flags().StringVarP(&pbpFlags.BinaryArtifactDir, "binary-artifacts", "", "./artifacts/plugins", "plugin binary artifact directory")
 	pluginBuildPackageCmd.Flags().StringVarP(&pbpFlags.PackageArtifactDir, "package-artifacts", "", "./artifacts/packages", "plugin package artifacts directory")
-	pluginBuildPackageCmd.Flags().StringVarP(&pbpFlags.LocalOCIRepository, "oci-registry", "", "", "local oci-registry to use for generating packages")
 
 	return pluginBuildPackageCmd
 }

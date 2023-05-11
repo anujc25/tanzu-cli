@@ -23,7 +23,6 @@ import (
 type BuildPluginPackageOptions struct {
 	BinaryArtifactDir  string
 	PackageArtifactDir string
-	LocalOCIRegistry   string
 	ImgpkgOptions      imgpkg.ImgpkgWrapper
 	DockerOptions      docker.DockerWrapper
 
