@@ -70,7 +70,7 @@ var _ = Describe("Unit tests for tkg auth", func() {
 						ghttp.RespondWith(http.StatusNotFound, "not found"),
 					),
 				)
-				_, _, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, nil, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
+				_, _, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, []byte{}, true, nil, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
 			})
 			It("should return the error", func() {
 				Expect(err).To(HaveOccurred())
@@ -90,7 +90,7 @@ var _ = Describe("Unit tests for tkg auth", func() {
 						ghttp.RespondWith(http.StatusNotFound, "not found"),
 					),
 				)
-				_, _, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, nil, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
+				_, _, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, []byte{}, true, nil, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
 			})
 			It("should return the error", func() {
 				Expect(err).To(HaveOccurred())
@@ -122,7 +122,7 @@ var _ = Describe("Unit tests for tkg auth", func() {
 				options := &tkgauth.KubeConfigOptions{
 					MergeFilePath: kubeconfigMergeFilePath,
 				}
-				kubeConfigPath, kubeContext, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, options, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
+				kubeConfigPath, kubeContext, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, []byte{}, true, options, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
 			})
 			It("should set default values", func() {
 				Expect(err).ToNot(HaveOccurred())
@@ -166,7 +166,7 @@ var _ = Describe("Unit tests for tkg auth", func() {
 				options := &tkgauth.KubeConfigOptions{
 					MergeFilePath: kubeconfigMergeFilePath,
 				}
-				kubeConfigPath, kubeContext, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, options, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
+				kubeConfigPath, kubeContext, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, []byte{}, true, options, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
 			})
 			It("should not include --concierge-namespace arg in kubeconfig", func() {
 				Expect(err).ToNot(HaveOccurred())
@@ -211,7 +211,7 @@ var _ = Describe("Unit tests for tkg auth", func() {
 				options := &tkgauth.KubeConfigOptions{
 					MergeFilePath: kubeconfigMergeFilePath,
 				}
-				kubeConfigPath, kubeContext, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, options, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
+				kubeConfigPath, kubeContext, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, []byte{}, true, options, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
 			})
 			It("should generate the kubeconfig and merge the kubeconfig to given path", func() {
 				Expect(err).ToNot(HaveOccurred())

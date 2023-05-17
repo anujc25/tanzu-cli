@@ -47,7 +47,7 @@ type clusterInfoConfig struct {
 }
 
 // GetClusterInfoFromCluster gets the cluster Info by accessing the cluster-info configMap in kube-public namespace
-func GetClusterInfoFromCluster(clusterAPIServerURL, configmapName string) (*clientcmdapi.Cluster, error) {
+func GetClusterInfoFromCluster(clusterAPIServerURL string, certCA []byte, skipTSLVerification bool, configmapName string) (*clientcmdapi.Cluster, error) {
 	clusterAPIServerURL = strings.TrimSpace(clusterAPIServerURL)
 	if !strings.HasPrefix(clusterAPIServerURL, "https://") && !strings.HasPrefix(clusterAPIServerURL, "http://") {
 		clusterAPIServerURL = "https://" + clusterAPIServerURL
@@ -60,15 +60,18 @@ func GetClusterInfoFromCluster(clusterAPIServerURL, configmapName string) (*clie
 	clusterAPIServerURL = strings.TrimRight(clusterAPIServerURL, " /")
 	clusterInfoURL := clusterAPIServerURL + fmt.Sprintf("/api/v1/namespaces/%s/configmaps/%s", KubePublicNamespace, configmapName)
 	req, _ := http.NewRequest("GET", clusterInfoURL, http.NoBody)
+
+	tslConfig, err := GetTLSConfig(certCA, skipTSLVerification)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get TLS configuration")
+	}
+
 	// To get the cluster ca certificate first time, we need to use skip verify the server certificate,
 	// all the later communications to cluster would be using CA after this call
 	clusterClient := &http.Client{
 		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			// #nosec
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
+			Proxy:           http.ProxyFromEnvironment,
+			TLSClientConfig: tslConfig,
 		},
 		Timeout: time.Second * 10,
 	}
@@ -163,4 +166,23 @@ func GetPinnipedInfoFromCluster(clusterInfo *clientcmdapi.Cluster, discoveryPort
 	}
 
 	return &pinnipedConfigMapInfo, nil
+}
+
+func GetTLSConfig(certCA []byte, skipTSLVerification bool) (*tls.Config, error) {
+	tlsConfig := &tls.Config{}
+	if skipTSLVerification {
+		tlsConfig.InsecureSkipVerify = true
+	} else if len(certCA) != 0 {
+		var pool *x509.CertPool
+		var err error
+		pool, err = x509.SystemCertPool()
+		if err != nil {
+			return nil, err
+		}
+		if ok := pool.AppendCertsFromPEM(certCA); !ok {
+			return nil, errors.Wrapf(err, "failed adding CA certificates")
+		}
+		tlsConfig.RootCAs = pool
+	}
+	return tlsConfig, nil
 }

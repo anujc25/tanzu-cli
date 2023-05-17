@@ -61,8 +61,8 @@ type DiscoveryStrategy struct {
 }
 
 // KubeconfigWithPinnipedAuthLoginPlugin prepares the kubeconfig with tanzu pinniped-auth login as client-go exec plugin
-func KubeconfigWithPinnipedAuthLoginPlugin(endpoint string, options *KubeConfigOptions, discoveryStrategy DiscoveryStrategy) (mergeFilePath, currentContext string, err error) {
-	clusterInfo, err := GetClusterInfoFromCluster(endpoint, discoveryStrategy.ClusterInfoConfigMap)
+func KubeconfigWithPinnipedAuthLoginPlugin(endpoint string, certCA []byte, skipTSLVerification bool, options *KubeConfigOptions, discoveryStrategy DiscoveryStrategy) (mergeFilePath, currentContext string, err error) {
+	clusterInfo, err := GetClusterInfoFromCluster(endpoint, certCA, skipTSLVerification, discoveryStrategy.ClusterInfoConfigMap)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get cluster-info")
 		return

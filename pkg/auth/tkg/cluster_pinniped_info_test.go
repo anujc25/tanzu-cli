@@ -53,7 +53,7 @@ var _ = Describe("Kubeconfig Tests", func() {
 						ghttp.RespondWith(http.StatusNotFound, "not found"),
 					),
 				)
-				_, err = GetClusterInfoFromCluster(endpoint, "cluster-info")
+				_, err = GetClusterInfoFromCluster(endpoint, []byte{}, true, "cluster-info")
 			})
 			It("should return the error", func() {
 				Expect(err).To(HaveOccurred())
@@ -68,7 +68,7 @@ var _ = Describe("Kubeconfig Tests", func() {
 						ghttp.RespondWith(http.StatusOK, "fake-format-value"),
 					),
 				)
-				_, err = GetClusterInfoFromCluster(endpoint, "cluster-info")
+				_, err = GetClusterInfoFromCluster(endpoint, []byte{}, true, "cluster-info")
 			})
 			It("should return the error", func() {
 				Expect(err).To(HaveOccurred())
@@ -85,7 +85,7 @@ var _ = Describe("Kubeconfig Tests", func() {
 						ghttp.RespondWith(http.StatusOK, clusterInfo),
 					),
 				)
-				cluster, err = GetClusterInfoFromCluster(endpoint, "cluster-info")
+				cluster, err = GetClusterInfoFromCluster(endpoint, []byte{}, true, "cluster-info")
 			})
 			It("should return the cluster information", func() {
 				Expect(err).ToNot(HaveOccurred())
@@ -102,7 +102,7 @@ var _ = Describe("Kubeconfig Tests", func() {
 						ghttp.RespondWith(http.StatusOK, clusterInfo),
 					),
 				)
-				cluster, err = GetClusterInfoFromCluster(endpoint, "vip-cluster-info")
+				cluster, err = GetClusterInfoFromCluster(endpoint, []byte{}, true, "vip-cluster-info")
 			})
 			It("should return the cluster information", func() {
 				Expect(err).ToNot(HaveOccurred())

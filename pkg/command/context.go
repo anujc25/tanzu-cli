@@ -39,6 +39,8 @@ import (
 var (
 	stderrOnly, forceCSP, staging, onlyCurrent, selfManaged            bool
 	ctxName, endpoint, apiToken, kubeConfig, kubeContext, getOutputFmt string
+	certCA                                                             string
+	skipTSLVerification                                                bool
 )
 
 const (
@@ -324,7 +326,12 @@ func createContextWithEndpoint() (context *configtypes.Context, err error) {
 	} else {
 		// While this would add an extra HTTP round trip, it avoids the need to
 		// add extra provider specific login flags.
-		isVSphereSupervisor, err := wcpauth.IsVSphereSupervisor(endpoint, getDiscoveryHTTPClient())
+		tslConfig, err := tkgauth.GetTLSConfig([]byte(certCA), skipTSLVerification)
+		if err != nil {
+			return nil, err
+		}
+
+		isVSphereSupervisor, err := wcpauth.IsVSphereSupervisor(endpoint, getDiscoveryHTTPClient(tslConfig))
 		// Fall back to assuming non vSphere supervisor.
 		if err != nil {
 			err := fmt.Errorf("error creating kubeconfig with tanzu pinniped-auth login plugin: %v", err)
@@ -340,7 +347,7 @@ func createContextWithEndpoint() (context *configtypes.Context, err error) {
 				return nil, err
 			}
 		} else {
-			kubeConfig, kubeContext, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, nil, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
+			kubeConfig, kubeContext, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, []byte(certCA), skipTSLVerification, nil, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
 			if err != nil {
 				err := fmt.Errorf("error creating kubeconfig with tanzu pinniped-auth login plugin: %v", err)
 				log.Error(err, "")
@@ -544,13 +551,13 @@ func getDefaultKubeconfigPath() string {
 	return kubeConfigPath
 }
 
-func getDiscoveryHTTPClient() *http.Client {
+func getDiscoveryHTTPClient(tlsConfig *tls.Config) *http.Client {
 	// XXX: Insecure, but follows the existing tanzu login discovery patterns. If
 	// there's something tracking not TOFUing, it might be good to follow that
 	// eventually.
 	tr := &http.Transport{
 		// #nosec
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig:     tlsConfig,
 		Proxy:               http.ProxyFromEnvironment,
 		TLSHandshakeTimeout: 5 * time.Second,
 	}
@@ -559,7 +566,7 @@ func getDiscoveryHTTPClient() *http.Client {
 
 func vSphereSupervisorLogin(endpoint string) (mergeFilePath, currentContext string, err error) {
 	port := 443
-	kubeCfg, kubeCtx, err := tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, nil, tkgauth.DiscoveryStrategy{DiscoveryPort: &port, ClusterInfoConfigMap: wcpauth.SupervisorVIPConfigMapName})
+	kubeCfg, kubeCtx, err := tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, []byte(certCA), skipTSLVerification, nil, tkgauth.DiscoveryStrategy{DiscoveryPort: &port, ClusterInfoConfigMap: wcpauth.SupervisorVIPConfigMapName})
 	if err != nil {
 		err := fmt.Errorf("error creating kubeconfig with tanzu pinniped-auth login plugin: %v", err)
 		log.Error(err, "")

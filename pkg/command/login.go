@@ -330,7 +330,11 @@ func createServerWithEndpoint() (server *configtypes.Server, err error) { // nol
 	} else {
 		// While this would add an extra HTTP round trip, it avoids the need to
 		// add extra provider specific login flags.
-		isVSphereSupervisor, err := wcpauth.IsVSphereSupervisor(endpoint, getDiscoveryHTTPClient())
+		tslConfig, err := tkgauth.GetTLSConfig([]byte(certCA), skipTSLVerification)
+		if err != nil {
+			return nil, err
+		}
+		isVSphereSupervisor, err := wcpauth.IsVSphereSupervisor(endpoint, getDiscoveryHTTPClient(tslConfig))
 		// Fall back to assuming non vSphere supervisor.
 		if err != nil {
 			err := fmt.Errorf("error creating kubeconfig with tanzu pinniped-auth login plugin: %v", err)
@@ -346,7 +350,7 @@ func createServerWithEndpoint() (server *configtypes.Server, err error) { // nol
 				return nil, err
 			}
 		} else {
-			kubeConfig, kubeContext, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, nil, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
+			kubeConfig, kubeContext, err = tkgauth.KubeconfigWithPinnipedAuthLoginPlugin(endpoint, []byte(certCA), skipTSLVerification, nil, tkgauth.DiscoveryStrategy{ClusterInfoConfigMap: tkgauth.DefaultClusterInfoConfigMap})
 			if err != nil {
 				err := fmt.Errorf("error creating kubeconfig with tanzu pinniped-auth login plugin: %v", err)
 				log.Error(err, "")
