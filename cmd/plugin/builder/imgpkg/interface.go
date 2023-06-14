@@ -19,7 +19,7 @@ type ImgpkgWrapper interface {
 	// CopyArchiveToRepo invokes `imgpkg copy --tar <archivePath> --to-repo <imageRepo>` command
 	CopyArchiveToRepo(imageRepo, archivePath string) error
 	// CopyImageToArchive invokes `imgpkg copy -i <image> --to-tar <archivePath>` command
-	CopyImageToArchive(image, archivePath string) error
+	CopyImageToArchive(image, pluginTarGZFilePath string) error
 }
 
 // NewImgpkgCLIWrapper creates new ImgpkgWrapper instance

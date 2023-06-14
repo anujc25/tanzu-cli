@@ -4,6 +4,8 @@
 package utils
 
 import (
+	"compress/gzip"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -84,4 +86,48 @@ func AppendFile(filePath string, data []byte) error {
 		return err
 	}
 	return nil
+}
+
+func Gzip(sourceFile, targetGZFilePath string) error {
+	reader, err := os.Open(sourceFile)
+	if err != nil {
+		return err
+	}
+
+	filename := filepath.Base(sourceFile)
+	writer, err := os.Create(targetGZFilePath)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+
+	archiver := gzip.NewWriter(writer)
+	archiver.Name = filename
+	defer archiver.Close()
+
+	_, err = io.Copy(archiver, reader)
+	return err
+}
+
+func UnGzip(sourceGZFilePath, targetFilePath string) error {
+	reader, err := os.Open(sourceGZFilePath)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	archive, err := gzip.NewReader(reader)
+	if err != nil {
+		return err
+	}
+	defer archive.Close()
+
+	writer, err := os.Create(targetFilePath)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+
+	_, err = io.Copy(writer, archive)
+	return err
 }
