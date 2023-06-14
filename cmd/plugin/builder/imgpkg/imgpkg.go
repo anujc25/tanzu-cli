@@ -55,3 +55,20 @@ func (io *ImgpkgOptions) GetFileDigestFromImage(image, fileName string) (string,
 	}
 	return digest, nil
 }
+
+// CopyArchiveToRepo invokes `imgpkg copy --tar <archivePath> --to-repo <imageRepo>` command
+func (io *ImgpkgOptions) CopyArchiveToRepo(imageRepo, archivePath string) error {
+	output, err := exec.Command("imgpkg", "copy", "--tar", archivePath, "--to-repo", imageRepo).CombinedOutput()
+	return errors.Wrapf(err, "output: %s", string(output))
+}
+
+// CopyImageToArchive invokes `imgpkg copy -i <image> --to-tar <archivePath>` command
+func (io *ImgpkgOptions) CopyImageToArchive(image, archivePath string) error {
+	err := os.MkdirAll(filepath.Dir(archivePath), 0755)
+	if err != nil {
+		return err
+	}
+
+	output, err := exec.Command("imgpkg", "copy", "-i", image, "--to-tar", archivePath).CombinedOutput()
+	return errors.Wrapf(err, "output: %s", string(output))
+}
