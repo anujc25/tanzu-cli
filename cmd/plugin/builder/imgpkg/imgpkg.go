@@ -19,19 +19,19 @@ type ImgpkgOptions struct{}
 
 // ResolveImage invokes `imgpkg tag resolve -i <image>` command
 func (io *ImgpkgOptions) ResolveImage(image string) error {
-	output, err := exec.Command("imgpkg", "tag", "resolve", "-i", image).CombinedOutput()
+	output, err := exec.Command(imgpkgBinary(), "tag", "resolve", "-i", image).CombinedOutput()
 	return errors.Wrapf(err, "output: %s", string(output))
 }
 
 // PushImage invokes `imgpkg push -i <image> -f <filepath>` command
 func (io *ImgpkgOptions) PushImage(image, filePath string) error {
-	output, err := exec.Command("imgpkg", "push", "-i", image, "-f", filePath).CombinedOutput()
+	output, err := exec.Command(imgpkgBinary(), "push", "-i", image, "-f", filePath).CombinedOutput()
 	return errors.Wrapf(err, "output: %s", string(output))
 }
 
 // PullImage invokes `imgpkg pull -i <image> -o <dirPath>` command
 func (io *ImgpkgOptions) PullImage(image, dirPath string) error {
-	output, err := exec.Command("imgpkg", "pull", "-i", image, "-o", dirPath).CombinedOutput()
+	output, err := exec.Command(imgpkgBinary(), "pull", "-i", image, "-o", dirPath).CombinedOutput()
 	return errors.Wrapf(err, "output: %s", string(output))
 }
 
@@ -69,7 +69,7 @@ func (io *ImgpkgOptions) CopyArchiveToRepo(imageRepo, pluginTarGZFilePath string
 		return err
 	}
 
-	output, err := exec.Command("imgpkg", "copy", "--tar", pluginTarFile.Name(), "--to-repo", imageRepo).CombinedOutput()
+	output, err := exec.Command(imgpkgBinary(), "copy", "--tar", pluginTarFile.Name(), "--to-repo", imageRepo).CombinedOutput()
 	return errors.Wrapf(err, "output: %s", string(output))
 }
 
@@ -86,11 +86,19 @@ func (io *ImgpkgOptions) CopyImageToArchive(image, pluginTarGZFilePath string) e
 	}
 	defer os.Remove(pluginTarFile.Name())
 
-	output, err := exec.Command("imgpkg", "copy", "-i", image, "--to-tar", pluginTarFile.Name()).CombinedOutput()
+	output, err := exec.Command(imgpkgBinary(), "copy", "-i", image, "--to-tar", pluginTarFile.Name()).CombinedOutput()
 	if err != nil {
 		return errors.Wrapf(err, "output: %s", string(output))
 	}
 
 	// convert the tar file into the tar.gz file
 	return utils.Gzip(pluginTarFile.Name(), pluginTarGZFilePath)
+}
+
+func imgpkgBinary() string {
+	imgpkgBinary := os.Getenv("IMGPKG_BIN")
+	if imgpkgBinary != "" {
+		return imgpkgBinary
+	}
+	return "imgpkg"
 }
