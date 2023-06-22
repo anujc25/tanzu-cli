@@ -109,3 +109,16 @@ func (i *ImageOperationOptions) PushImage(imageWithTag string, filePaths []strin
 	}
 	return reg.PushImage(imageWithTag, filePaths)
 }
+
+// ResolveImage invokes `imgpkg tag resolve -i <image>` command
+func (i *ImageOperationOptions) ResolveImage(image string) error {
+	registryName, err := registry.GetRegistryName(image)
+	if err != nil {
+		return err
+	}
+	reg, err := newRegistry(registryName)
+	if err != nil {
+		return errors.Wrapf(err, "unable to initialize registry")
+	}
+	return reg.ResolveImage(image)
+}
