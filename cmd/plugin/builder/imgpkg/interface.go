@@ -16,10 +16,6 @@ type ImgpkgWrapper interface {
 	PullImage(image, dirPath string) error
 	// GetFileDigestFromImage invokes `PullImage` to fetch the image and returns the digest of the specified file
 	GetFileDigestFromImage(image, fileName string) (string, error)
-	// CopyArchiveToRepo invokes `imgpkg copy --tar <archivePath> --to-repo <imageRepo>` command
-	CopyArchiveToRepo(imageRepo, archivePath string) error
-	// CopyImageToArchive invokes `imgpkg copy -i <image> --to-tar <archivePath>` command
-	CopyImageToArchive(image, pluginTarGZFilePath string) error
 }
 
 // NewImgpkgCLIWrapper creates new ImgpkgWrapper instance

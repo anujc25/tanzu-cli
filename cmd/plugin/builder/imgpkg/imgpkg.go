@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/vmware-tanzu/tanzu-cli/cmd/plugin/builder/helpers"
-	"github.com/vmware-tanzu/tanzu-cli/pkg/utils"
 )
 
 // ImgpkgOptions implements the ImgpkgWrapper interface by using `imgpkg` binary internally
@@ -55,44 +54,6 @@ func (io *ImgpkgOptions) GetFileDigestFromImage(image, fileName string) (string,
 		return "", errors.Wrapf(err, "unable to calculate digest for path %v", filepath.Join(tempDir, fileName))
 	}
 	return digest, nil
-}
-
-// CopyArchiveToRepo invokes `imgpkg copy --tar <archivePath> --to-repo <imageRepo>` command
-func (io *ImgpkgOptions) CopyArchiveToRepo(imageRepo, pluginTarGZFilePath string) error {
-	pluginTarFile, err := os.CreateTemp("", "*.tar")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(pluginTarFile.Name())
-	err = utils.UnGzip(pluginTarGZFilePath, pluginTarFile.Name())
-	if err != nil {
-		return err
-	}
-
-	output, err := exec.Command(imgpkgBinary(), "copy", "--tar", pluginTarFile.Name(), "--to-repo", imageRepo).CombinedOutput()
-	return errors.Wrapf(err, "output: %s", string(output))
-}
-
-// CopyImageToArchive invokes `imgpkg copy -i <image> --to-tar <archivePath>` command
-func (io *ImgpkgOptions) CopyImageToArchive(image, pluginTarGZFilePath string) error {
-	err := os.MkdirAll(filepath.Dir(pluginTarGZFilePath), 0755)
-	if err != nil {
-		return err
-	}
-
-	pluginTarFile, err := os.CreateTemp("", "*.tar")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(pluginTarFile.Name())
-
-	output, err := exec.Command(imgpkgBinary(), "copy", "-i", image, "--to-tar", pluginTarFile.Name()).CombinedOutput()
-	if err != nil {
-		return errors.Wrapf(err, "output: %s", string(output))
-	}
-
-	// convert the tar file into the tar.gz file
-	return utils.Gzip(pluginTarFile.Name(), pluginTarGZFilePath)
 }
 
 func imgpkgBinary() string {

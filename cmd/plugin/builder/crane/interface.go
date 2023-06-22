@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package imgpkg implements helper function for imgpkg cli
-package imgpkg
+package crane
 
 //go:generate counterfeiter -o ../fakes/imgpkgwrapper.go --fake-name ImgpkgWrapper . ImgpkgWrapper
 
