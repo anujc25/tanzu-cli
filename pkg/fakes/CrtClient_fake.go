@@ -5,10 +5,9 @@ import (
 	"context"
 	"sync"
 
+	"github.com/vmware-tanzu/tanzu-cli/pkg/cluster"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/vmware-tanzu/tanzu-cli/pkg/cluster"
 )
 
 type CrtClientFake struct {

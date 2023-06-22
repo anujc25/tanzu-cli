@@ -4,10 +4,9 @@ package fakes
 import (
 	"sync"
 
+	"github.com/vmware-tanzu/tanzu-cli/pkg/cluster"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
-
-	"github.com/vmware-tanzu/tanzu-cli/pkg/cluster"
 )
 
 type DynamicClientFactory struct {

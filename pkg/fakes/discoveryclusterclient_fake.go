@@ -5,13 +5,12 @@ import (
 	"sync"
 
 	openapi_v2 "github.com/google/gnostic/openapiv2"
+	"github.com/vmware-tanzu/tanzu-cli/pkg/cluster"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/openapi"
 	"k8s.io/client-go/rest"
-
-	"github.com/vmware-tanzu/tanzu-cli/pkg/cluster"
 )
 
 type DiscoveryClient struct {

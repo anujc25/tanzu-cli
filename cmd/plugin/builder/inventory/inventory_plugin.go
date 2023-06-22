@@ -125,7 +125,7 @@ func (ipuo *InventoryPluginUpdateOptions) updatePluginInventoryEntry(pluginInven
 		// If we are only validating the plugin's existence, we don't need to waste
 		// resources downloading the image to get the digest which won't actually be used.
 		pluginImage := fmt.Sprintf("%s/%s", ipuo.Repository, pluginImageBasePath)
-		digest, err = getFileDigestFromImage(ipuo.ImageOperationsImpl, pluginImage, cli.MakeArtifactName(plugin.Name, osArch))
+		digest, err = ipuo.ImageOperationsImpl.GetFileDigestFromImage(pluginImage, cli.MakeArtifactName(plugin.Name, osArch))
 		if err != nil {
 			return nil, errors.Wrapf(err, "error while getting plugin binary digest from the image %q", pluginImage)
 		}

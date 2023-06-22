@@ -27,4 +27,6 @@ type ImageOperationsImpl interface {
 	PushImage(imageWithTag string, filePaths []string) error
 	// ResolveImage invokes `imgpkg tag resolve -i <image>` command
 	ResolveImage(image string) error
+	// GetFileDigestFromImage invokes `DownloadImageAndSaveFilesToDir` to fetch the image and returns the digest of the specified file
+	GetFileDigestFromImage(image, fileName string) (string, error)
 }

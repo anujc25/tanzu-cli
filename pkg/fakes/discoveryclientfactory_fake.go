@@ -4,11 +4,10 @@ package fakes
 import (
 	"sync"
 
+	"github.com/vmware-tanzu/tanzu-cli/pkg/cluster"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
-
-	"github.com/vmware-tanzu/tanzu-cli/pkg/cluster"
 )
 
 type DiscoveryClientFactory struct {
