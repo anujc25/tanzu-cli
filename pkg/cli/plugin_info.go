@@ -73,6 +73,9 @@ type PluginInfo struct {
 
 	// DefaultFeatureFlags is default featureflags to be configured if missing when invoking plugin
 	DefaultFeatureFlags map[string]bool `json:"defaultFeatureFlags" yaml:"defaultFeatureFlags"`
+
+	// CommandPath specifies the path to the cobra command where the plugin should be placed to be invoked
+	CommandPath []string `json:"commandPath,omitempty" yaml:"commandPath,omitempty"`
 }
 
 // PluginInfoSorter sorts PluginInfo objects.

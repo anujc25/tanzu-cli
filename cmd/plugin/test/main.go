@@ -25,6 +25,7 @@ var descriptor = plugin.PluginDescriptor{
 	Group:       plugin.AdminCmdGroup,
 	Version:     buildinfo.Version,
 	BuildSHA:    buildinfo.SHA,
+	CommandPath: []string{"context", "xxx", "builder"},
 }
 
 var local string

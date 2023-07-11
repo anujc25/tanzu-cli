@@ -2,7 +2,10 @@ module github.com/vmware-tanzu/tanzu-cli
 
 go 1.19
 
-replace cloud.google.com/go => cloud.google.com/go v0.102.1
+replace (
+	cloud.google.com/go => cloud.google.com/go v0.102.1
+	github.com/vmware-tanzu/tanzu-plugin-runtime => /Users/anujc/Documents/code/tanzu-plugin-runtime
+)
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.6

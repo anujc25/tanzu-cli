@@ -14,6 +14,7 @@ import (
 
 	"github.com/vmware-tanzu/tanzu-plugin-runtime/config"
 	configtypes "github.com/vmware-tanzu/tanzu-plugin-runtime/config/types"
+	"github.com/vmware-tanzu/tanzu-plugin-runtime/log"
 	"github.com/vmware-tanzu/tanzu-plugin-runtime/plugin"
 
 	"github.com/vmware-tanzu/tanzu-cli/pkg/catalog"
@@ -98,6 +99,20 @@ func NewRootCmd() (*cobra.Command, error) {
 				} else {
 					maskedPluginsWithCoreCmdOverlap = append(maskedPluginsWithCoreCmdOverlap, plugins[i].Name)
 				}
+			}
+		}
+	}
+
+	for i := range plugins {
+		if len(plugins[i].CommandPath) > 0 {
+			// Add plugins to the different command path if specified
+			matchedCmd := findSubCommandFromCommandPath(rootCmd, plugins[i].CommandPath[:len(plugins[i].CommandPath)-1])
+			if matchedCmd == nil {
+				log.Warningf("invalid commandPath %q specified for plugin %q", strings.Join(plugins[i].CommandPath, "."), plugins[i].Name)
+			} else {
+				plugins[i].Name = plugins[i].CommandPath[len(plugins[i].CommandPath)-1]
+				cmd := cli.GetCmdForPlugin(&plugins[i])
+				matchedCmd.AddCommand(cmd)
 			}
 		}
 	}
@@ -213,12 +228,33 @@ func findSubCommand(rootCmd, subCmd *cobra.Command) *cobra.Command {
 	return nil
 }
 
+func findSubCommandFromName(rootCmd *cobra.Command, cmdName string) *cobra.Command {
+	arrSubCmd := rootCmd.Commands()
+	for i := range arrSubCmd {
+		if arrSubCmd[i].Name() == cmdName {
+			return arrSubCmd[i]
+		}
+	}
+	return nil
+}
+
+func findSubCommandFromCommandPath(rootCmd *cobra.Command, cmdPath []string) *cobra.Command {
+	cmd := rootCmd
+	for _, cmdName := range cmdPath {
+		cmd = findSubCommandFromName(cmd, cmdName)
+		if cmd == nil {
+			return nil
+		}
+	}
+	return cmd
+}
+
 func isPluginRootCmdTargeted(pluginInfo *cli.PluginInfo) bool {
 	// Plugins are considered "root-targeted" if their target is one of:
 	// - global
 	// - k8s
 	// - unknown (backwards-compatibility: old designation for "global")
-	return pluginInfo != nil &&
+	return pluginInfo != nil && len(pluginInfo.CommandPath) == 0 &&
 		(pluginInfo.Target == configtypes.TargetGlobal ||
 			pluginInfo.Target == configtypes.TargetK8s ||
 			pluginInfo.Target == configtypes.TargetUnknown)

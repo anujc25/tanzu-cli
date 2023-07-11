@@ -17,6 +17,8 @@ var descriptor = plugin.PluginDescriptor{
 	Group:       plugin.AdminCmdGroup,
 	Version:     buildinfo.Version,
 	BuildSHA:    buildinfo.SHA,
+	Aliases:     []string{"tmc"},
+	CommandPath: []string{"context", "create", "mission-control"},
 }
 
 func main() {
