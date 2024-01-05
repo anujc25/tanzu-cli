@@ -1125,10 +1125,18 @@ func SyncPlugins() error {
 	if err != nil {
 		errList = append(errList, err)
 	}
-	err = InstallDiscoveredContextPlugins(plugins)
-	if err != nil {
-		errList = append(errList, err)
+
+	for i := range plugins {
+		err = InstallStandalonePlugin(plugins[i].Name, plugins[i].RecommendedVersion, plugins[i].Target)
+		if err != nil {
+			errList = append(errList, err)
+		}
 	}
+	// err = InstallDiscoveredContextPlugins(plugins)
+	// // err = InstallDiscoveredContextPlugins(plugins)
+	// if err != nil {
+	// 	errList = append(errList, err)
+	// }
 	return kerrors.NewAggregate(errList)
 }
 
@@ -1146,7 +1154,7 @@ func DiscoverPluginsForContextType(contextType configtypes.ContextType) ([]disco
 
 // UpdatePluginsInstallationStatus updates the installation status of the given plugins
 func UpdatePluginsInstallationStatus(plugins []discovery.Discovered) {
-	if installedPlugins, err := pluginsupplier.GetInstalledServerPlugins(); err == nil {
+	if installedPlugins, err := pluginsupplier.GetInstalledStandalonePlugins(); err == nil {
 		setAvailablePluginsStatus(plugins, installedPlugins)
 	}
 }

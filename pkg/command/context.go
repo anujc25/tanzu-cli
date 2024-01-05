@@ -303,15 +303,24 @@ func syncContextPlugins(cmd *cobra.Command, contextType configtypes.ContextType,
 			}
 		}
 		if pluginsNeedstoBeInstalled > 0 {
-			log.Infof("The following plugins will be installed for context '%s' of contextType '%s': ", ctxName, contextType)
+			log.Infof("The context '%s' recommends following plugin to be installed:", ctxName)
 			displayUninstalledPluginsContentAsTable(plugins, cmd.ErrOrStderr())
 		}
 	}
 
-	err = pluginmanager.InstallDiscoveredContextPlugins(plugins)
-	if err != nil {
-		errList = append(errList, err)
+	log.Info("Installing recommended plugins...", ctxName)
+
+	for i := range plugins {
+		err = pluginmanager.InstallStandalonePlugin(plugins[i].Name, plugins[i].RecommendedVersion, plugins[i].Target)
+		if err != nil {
+			errList = append(errList, err)
+		}
 	}
+
+	// err = pluginmanager.InstallDiscoveredContextPlugins(plugins)
+	// if err != nil {
+	// 	errList = append(errList, err)
+	// }
 	err = kerrors.NewAggregate(errList)
 	if err != nil {
 		log.Warningf("unable to automatically sync the plugins from target context. Please run 'tanzu plugin sync' command to sync plugins manually, error: '%v'", err.Error())

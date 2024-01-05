@@ -90,7 +90,7 @@ func getInstalledStandaloneAndServerPlugins() (standalonePlugins, serverPlugins 
 	// If the same plugin is present both as standalone and
 	// as a server plugin we need to select which one to use
 	// based on the TANZU_CLI_STANDALONE_OVER_CONTEXT_PLUGINS variable
-	standalonePlugins, serverPlugins = filterIdenticalStandaloneAndServerPlugins(standalonePlugins, serverPlugins)
+	// standalonePlugins, serverPlugins = filterIdenticalStandaloneAndServerPlugins(standalonePlugins, serverPlugins)
 	return standalonePlugins, serverPlugins, nil
 }
 

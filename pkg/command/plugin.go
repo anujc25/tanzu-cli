@@ -151,6 +151,9 @@ func newListPluginCmd() *cobra.Command {
 				errorList = append(errorList, err)
 				log.Warningf(errorWhileGettingContextPlugins, err.Error())
 			}
+			installedContextPlugins = []discovery.Discovered{}
+			sort.Sort(discovery.DiscoveredSorter(installedContextPlugins))
+			sort.Sort(discovery.DiscoveredSorter(missingContextPlugins))
 
 			if outputFormat == "" || outputFormat == string(component.TableOutputType) {
 				displayInstalledAndMissingSplitView(standalonePlugins, installedContextPlugins, missingContextPlugins, pluginSyncRequired, cmd.OutOrStdout())
@@ -453,11 +456,8 @@ func syncPlugins(cmd *cobra.Command) error {
 	if count == 0 {
 		log.Warning("No active contexts available to perform plugin sync")
 		return nil
-	} else if count == 1 {
-		log.Infof("Plugin sync will be performed for context: %s", contextNames)
-	} else if count > 1 {
-		log.Infof("Plugin sync will be performed for contexts: %s", contextNames)
 	}
+
 	for contextType, context := range contextMap {
 		err = syncContextPlugins(cmd, contextType, context.Name, true)
 		if err != nil {
@@ -478,7 +478,7 @@ func getInstalledAndMissingContextPlugins() (installed, missing []discovery.Disc
 
 	// Note that the plugins we get here don't know from which context they were installed.
 	// We need to cross-reference them with the discovered plugins.
-	installedPlugins, err := pluginsupplier.GetInstalledServerPlugins()
+	installedPlugins, err := pluginsupplier.GetInstalledStandalonePlugins()
 	if err != nil {
 		errorList = append(errorList, err)
 		log.Warningf(errorWhileGettingContextPlugins, err.Error())
@@ -515,8 +515,7 @@ func getInstalledAndMissingContextPlugins() (installed, missing []discovery.Disc
 
 func displayInstalledAndMissingSplitView(installedStandalonePlugins []cli.PluginInfo, installedContextPlugins, missingContextPlugins []discovery.Discovered, pluginSyncRequired bool, writer io.Writer) {
 	// List installed standalone plugins
-	cyanBold := color.New(color.FgCyan).Add(color.Bold)
-	_, _ = cyanBold.Println("Standalone Plugins")
+	cyan := color.New(color.FgCyan)
 
 	sort.Sort(cli.PluginInfoSorter(installedStandalonePlugins))
 	outputStandalone := component.NewOutputWriterWithOptions(writer, outputFormat, []component.OutputWriterOption{}, "Name", "Description", "Target", "Version", "Status")
@@ -529,55 +528,64 @@ func displayInstalledAndMissingSplitView(installedStandalonePlugins []cli.Plugin
 			common.PluginStatusInstalled,
 		)
 	}
+	for index := range missingContextPlugins {
+		outputStandalone.AddRow(
+			missingContextPlugins[index].Name,
+			missingContextPlugins[index].Description,
+			string(missingContextPlugins[index].Target),
+			missingContextPlugins[index].RecommendedVersion,
+			common.PluginStatusRecommendInstall,
+		)
+	}
 	outputStandalone.Render()
 
-	// List installed and missing context plugins in one list.
-	// First group them by context.
-	contextPlugins := installedContextPlugins
-	contextPlugins = append(contextPlugins, missingContextPlugins...)
+	// // List installed and missing context plugins in one list.
+	// // First group them by context.
+	// contextPlugins := installedContextPlugins
+	// contextPlugins = append(contextPlugins, missingContextPlugins...)
 
-	ctxPluginsByContext := make(map[string][]discovery.Discovered)
-	for index := range contextPlugins {
-		ctx := contextPlugins[index].ContextName
-		ctxPluginsByContext[ctx] = append(ctxPluginsByContext[ctx], contextPlugins[index])
-	}
+	// ctxPluginsByContext := make(map[string][]discovery.Discovered)
+	// for index := range contextPlugins {
+	// 	ctx := contextPlugins[index].ContextName
+	// 	ctxPluginsByContext[ctx] = append(ctxPluginsByContext[ctx], contextPlugins[index])
+	// }
 
-	cyanBoldItalic := color.New(color.FgCyan).Add(color.Bold, color.Italic)
+	// cyanBoldItalic := color.New(color.FgCyan).Add(color.Bold, color.Italic)
 
-	// sort contexts to maintain consistency in the plugin list output
-	contexts := make([]string, 0, len(ctxPluginsByContext))
-	for context := range ctxPluginsByContext {
-		contexts = append(contexts, context)
-	}
-	sort.Strings(contexts)
-	for _, context := range contexts {
-		outputWriter := component.NewOutputWriterWithOptions(writer, outputFormat, []component.OutputWriterOption{}, "Name", "Description", "Target", "Version", "Status")
+	// // sort contexts to maintain consistency in the plugin list output
+	// contexts := make([]string, 0, len(ctxPluginsByContext))
+	// for context := range ctxPluginsByContext {
+	// 	contexts = append(contexts, context)
+	// }
+	// sort.Strings(contexts)
+	// for _, context := range contexts {
+	// 	outputWriter := component.NewOutputWriterWithOptions(writer, outputFormat, []component.OutputWriterOption{}, "Name", "Description", "Target", "Version", "Status")
 
-		ctxSpecificPlugins := ctxPluginsByContext[context]
-		// sort plugins to maintain consistency in the plugin list output
-		sort.Sort(discovery.DiscoveredSorter(ctxSpecificPlugins))
-		fmt.Println("")
-		_, _ = cyanBold.Println("Plugins from Context: ", cyanBoldItalic.Sprintf(context))
-		for i := range ctxSpecificPlugins {
-			v := ctxSpecificPlugins[i].InstalledVersion
-			if ctxSpecificPlugins[i].Status == common.PluginStatusNotInstalled {
-				v = ctxSpecificPlugins[i].RecommendedVersion
-			}
-			outputWriter.AddRow(
-				ctxSpecificPlugins[i].Name,
-				ctxSpecificPlugins[i].Description,
-				string(ctxSpecificPlugins[i].Target),
-				v,
-				ctxSpecificPlugins[i].Status,
-			)
-		}
-		outputWriter.Render()
-	}
+	// 	ctxSpecificPlugins := ctxPluginsByContext[context]
+	// 	// sort plugins to maintain consistency in the plugin list output
+	// 	sort.Sort(discovery.DiscoveredSorter(ctxSpecificPlugins))
+	// 	fmt.Println("")
+	// 	_, _ = cyanBold.Println("Recommended plugins from context: ", cyanBoldItalic.Sprintf(context))
+	// 	for i := range ctxSpecificPlugins {
+	// 		v := ctxSpecificPlugins[i].InstalledVersion
+	// 		if ctxSpecificPlugins[i].Status == common.PluginStatusNotInstalled {
+	// 			v = ctxSpecificPlugins[i].RecommendedVersion
+	// 		}
+	// 		outputWriter.AddRow(
+	// 			ctxSpecificPlugins[i].Name,
+	// 			ctxSpecificPlugins[i].Description,
+	// 			string(ctxSpecificPlugins[i].Target),
+	// 			v,
+	// 			ctxSpecificPlugins[i].Status,
+	// 		)
+	// 	}
+	// 	outputWriter.Render()
+	// }
 
 	if pluginSyncRequired {
 		// Print a warning to the user that some context plugins are not installed or outdated and plugin sync is required to install them
 		fmt.Println("")
-		fmt.Println("Note: As shown above, some recommended plugins have not been installed or are outdated. To install them please run 'tanzu plugin sync'.")
+		fmt.Printf("Note: As shown above, some recommended plugins have not been installed or are outdated. To install them please run %s.\n", cyan.Sprint("tanzu plugin sync"))
 	}
 }
 
