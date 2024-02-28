@@ -296,19 +296,17 @@ func syncContextPlugins(cmd *cobra.Command, contextType configtypes.ContextType,
 
 	// list plugins only if listPlugins is true and there are plugins to be installed
 	if listPlugins {
-		pluginsNeedstoBeInstalled := 0
+		pluginsNeedToBeInstalled := 0
 		for idx := range plugins {
 			if plugins[idx].Status == common.PluginStatusNotInstalled || plugins[idx].Status == common.PluginStatusUpdateAvailable {
-				pluginsNeedstoBeInstalled++
+				pluginsNeedToBeInstalled++
 			}
 		}
-		if pluginsNeedstoBeInstalled > 0 {
+		if pluginsNeedToBeInstalled > 0 {
 			log.Infof("The context '%s' recommends following plugin to be installed:", ctxName)
-			displayUninstalledPluginsContentAsTable(plugins, cmd.ErrOrStderr())
+			displayPluginsContentAsTable(plugins, cmd.ErrOrStderr())
 		}
 	}
-
-	log.Info("Installing recommended plugins...", ctxName)
 
 	for i := range plugins {
 		err = pluginmanager.InstallStandalonePlugin(plugins[i].Name, plugins[i].RecommendedVersion, plugins[i].Target)
@@ -317,10 +315,6 @@ func syncContextPlugins(cmd *cobra.Command, contextType configtypes.ContextType,
 		}
 	}
 
-	// err = pluginmanager.InstallDiscoveredContextPlugins(plugins)
-	// if err != nil {
-	// 	errList = append(errList, err)
-	// }
 	err = kerrors.NewAggregate(errList)
 	if err != nil {
 		log.Warningf("unable to automatically sync the plugins from target context. Please run 'tanzu plugin sync' command to sync plugins manually, error: '%v'", err.Error())
@@ -328,15 +322,15 @@ func syncContextPlugins(cmd *cobra.Command, contextType configtypes.ContextType,
 	return err
 }
 
-// displayUninstalledPluginsContentAsTable takes a list of plugins and writes the uninstalled plugins as a table
-func displayUninstalledPluginsContentAsTable(plugins []discovery.Discovered, writer io.Writer) {
-	outputUninstalledPlugins := component.NewOutputWriterWithOptions(writer, outputFormat, []component.OutputWriterOption{}, "Name", "Target", "Version")
+// displayPluginsContentAsTable takes a list of plugins and displays the plugin info as a table
+func displayPluginsContentAsTable(plugins []discovery.Discovered, writer io.Writer) {
+	outputPlugins := component.NewOutputWriterWithOptions(writer, outputFormat, []component.OutputWriterOption{}, "Name", "Target", "Version")
 	for i := range plugins {
 		if plugins[i].Status == common.PluginStatusNotInstalled || plugins[i].Status == common.PluginStatusUpdateAvailable {
-			outputUninstalledPlugins.AddRow(plugins[i].Name, plugins[i].Target, plugins[i].RecommendedVersion)
+			outputPlugins.AddRow(plugins[i].Name, plugins[i].Target, plugins[i].RecommendedVersion)
 		}
 	}
-	outputUninstalledPlugins.Render()
+	outputPlugins.Render()
 }
 
 func isGlobalContext(endpoint string) bool {
@@ -1109,18 +1103,7 @@ func deleteCtx(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	installed, _, _, _ := getInstalledAndMissingContextPlugins() //nolint:dogsled
-	log.Infof("Deleting entry for context '%s'", name)
-	err = config.RemoveContext(name)
-	if err != nil {
-		return err
-	}
 
-	// Sort the installed plugins by name
-	sort.Sort(discovery.DiscoveredSorter(installed))
-
-	// List the plugins that are being deactivated
-	listDeactivatedPlugins(installed, name)
 	deleteKubeconfigContext(ctx)
 
 	return nil
@@ -1251,7 +1234,6 @@ func unsetCtx(_ *cobra.Command, args []string) error {
 
 func unsetGivenContext(name string, contextType configtypes.ContextType) error {
 	var unset bool
-	installed, _, _, _ := getInstalledAndMissingContextPlugins() //nolint:dogsled
 	currentCtxMap, err := config.GetAllActiveContextsMap()
 	if contextType != "" && name != "" {
 		ctx, ok := currentCtxMap[contextType]
@@ -1285,15 +1267,8 @@ func unsetGivenContext(name string, contextType configtypes.ContextType) error {
 	}
 	if err != nil {
 		return err
-	} else if unset {
-		log.Outputf(contextForContextTypeSetInactive, name, contextType)
-
-		// Sort the installed plugins by name
-		sort.Sort(discovery.DiscoveredSorter(installed))
-
-		// List the plugins that are being deactivated
-		listDeactivatedPlugins(installed, name)
 	}
+
 	return nil
 }
 

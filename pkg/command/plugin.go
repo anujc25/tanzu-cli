@@ -10,13 +10,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 
 	"github.com/vmware-tanzu/tanzu-plugin-runtime/component"
 	configtypes "github.com/vmware-tanzu/tanzu-plugin-runtime/config/types"
+	"github.com/vmware-tanzu/tanzu-plugin-runtime/log/color"
 	"github.com/vmware-tanzu/tanzu-plugin-runtime/plugin"
 
 	"github.com/vmware-tanzu/tanzu-cli/pkg/cli"
@@ -42,7 +42,7 @@ var (
 const (
 	invalidTargetMsg                = "invalid target specified. Please specify a correct value for the `--target` flag from '" + common.TargetList + "'"
 	errorWhileDiscoveringPlugins    = "there was an error while discovering plugins, error information: '%v'"
-	errorWhileGettingContextPlugins = "there was an error while getting installed context plugins, error information: '%v'"
+	errorWhileGettingContextPlugins = "there was an error while discovering context plugins, error information: '%v'"
 	pluginNameCaps                  = "PLUGIN_NAME"
 )
 
@@ -132,34 +132,25 @@ func newListPluginCmd() *cobra.Command {
 	var listCmd = &cobra.Command{
 		Use:               "list",
 		Short:             "List installed plugins",
-		Long:              "List installed standalone plugins or plugins recommended by the contexts being used",
+		Long:              "List installed plugins and plugins recommended by the contexts that are missing",
 		ValidArgsFunction: noMoreCompletions,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			errorList := make([]error, 0)
-			// List installed standalone plugins
-			standalonePlugins, err := pluginsupplier.GetInstalledStandalonePlugins()
+			// List installed plugins
+			installedPlugins, err := pluginsupplier.GetInstalledStandalonePlugins()
 			if err != nil {
 				errorList = append(errorList, err)
-				log.Warningf("there was an error while getting installed standalone plugins, error information: '%v'", err.Error())
+				log.Warningf("there was an error while getting installed plugins, error information: '%v'", err.Error())
 			}
 
-			// List installed context plugins and also missing context plugins.
-			// Showing missing ones guides the user to know some plugins are recommended for the
-			// active contexts, but are not installed.
-			installedContextPlugins, missingContextPlugins, pluginSyncRequired, err := getInstalledAndMissingContextPlugins()
+			// Get List of discovered Server Plugins
+			discoveredServerPlugins, err := pluginmanager.DiscoverServerPlugins()
 			if err != nil {
 				errorList = append(errorList, err)
 				log.Warningf(errorWhileGettingContextPlugins, err.Error())
 			}
-			installedContextPlugins = []discovery.Discovered{}
-			sort.Sort(discovery.DiscoveredSorter(installedContextPlugins))
-			sort.Sort(discovery.DiscoveredSorter(missingContextPlugins))
 
-			if outputFormat == "" || outputFormat == string(component.TableOutputType) {
-				displayInstalledAndMissingSplitView(standalonePlugins, installedContextPlugins, missingContextPlugins, pluginSyncRequired, cmd.OutOrStdout())
-			} else {
-				displayInstalledAndMissingListView(standalonePlugins, installedContextPlugins, missingContextPlugins, cmd.OutOrStdout())
-			}
+			displayInstalledPlugins(installedPlugins, discoveredServerPlugins, cmd.OutOrStdout())
 
 			return kerrors.NewAggregate(errorList)
 		},
@@ -327,6 +318,7 @@ func installPluginsForPluginGroup(cmd *cobra.Command, args []string) error {
 func newUpgradePluginCmd() *cobra.Command {
 	var upgradeCmd = &cobra.Command{
 		Use:               "upgrade " + pluginNameCaps,
+		Hidden:            true,
 		Short:             "Upgrade a plugin",
 		Long:              "Installs the latest version available for the specified plugin",
 		ValidArgsFunction: completeAllPluginsToInstall,
@@ -444,14 +436,11 @@ func syncPlugins(cmd *cobra.Command) error {
 		return err
 	}
 	errList := make([]error, 0)
-	contextNames := ""
 	count := 0
 	for _, context := range contextMap {
-		if contextNames != "" {
-			contextNames += ", "
+		if strings.TrimSpace(context.Name) != "" {
+			count += 1
 		}
-		contextNames += fmt.Sprintf("'%s'", context.Name)
-		count++
 	}
 	if count == 0 {
 		log.Warning("No active contexts available to perform plugin sync")
@@ -467,169 +456,93 @@ func syncPlugins(cmd *cobra.Command) error {
 	return kerrors.NewAggregate(errList)
 }
 
-// getInstalledAndMissingContextPlugins returns any context plugins that are not installed
-func getInstalledAndMissingContextPlugins() (installed, missing []discovery.Discovered, pluginSyncRequired bool, err error) {
-	errorList := make([]error, 0)
-	serverPlugins, err := pluginmanager.DiscoverServerPlugins()
-	if err != nil {
-		errorList = append(errorList, err)
-		log.Warningf(errorWhileDiscoveringPlugins, err.Error())
+type pluginListInfo struct {
+	name        string
+	description string
+	target      string
+	installed   string
+	recommended string
+	status      string
+}
+
+// pluginListInfoSorter sorts pluginListInfo objects.
+type pluginListInfoSorter []pluginListInfo
+
+func (d pluginListInfoSorter) Len() int      { return len(d) }
+func (d pluginListInfoSorter) Swap(i, j int) { d[i], d[j] = d[j], d[i] }
+func (d pluginListInfoSorter) Less(i, j int) bool {
+	if d[i].name != d[j].name {
+		return d[i].name < d[j].name
 	}
+	return string(d[i].target) < string(d[j].target)
+}
 
-	// Note that the plugins we get here don't know from which context they were installed.
-	// We need to cross-reference them with the discovered plugins.
-	installedPlugins, err := pluginsupplier.GetInstalledStandalonePlugins()
-	if err != nil {
-		errorList = append(errorList, err)
-		log.Warningf(errorWhileGettingContextPlugins, err.Error())
-	}
+func displayInstalledPlugins(installedStandalonePlugins []cli.PluginInfo, recommendedContextPlugins []discovery.Discovered, writer io.Writer) {
+	pluginSyncRequired := false
 
-	for i := range serverPlugins {
-		found := false
-		for j := range installedPlugins {
-			if serverPlugins[i].Name != installedPlugins[j].Name || serverPlugins[i].Target != installedPlugins[j].Target {
-				continue
+	getRecommendedPluginVersion := func(installedPlugin cli.PluginInfo) string {
+		for index := range recommendedContextPlugins {
+			if installedPlugin.Name == recommendedContextPlugins[index].Name && installedPlugin.Target == recommendedContextPlugins[index].Target {
+				recommendedContextPlugins[index].Status = common.PluginStatusInstalled
+				return recommendedContextPlugins[index].RecommendedVersion
 			}
-
-			// Store the installed plugin, which includes the context from which it was installed
-			found = true
-			if serverPlugins[i].RecommendedVersion != installedPlugins[j].Version {
-				serverPlugins[i].Status = common.PluginStatusUpdateAvailable
-				pluginSyncRequired = true
-			} else {
-				serverPlugins[i].Status = common.PluginStatusInstalled
-			}
-			serverPlugins[i].InstalledVersion = installedPlugins[j].Version
-			installed = append(installed, serverPlugins[i])
-			break
 		}
-		if !found {
-			// We have a server plugin that is not installed, include it in the list
-			serverPlugins[i].Status = common.PluginStatusNotInstalled
-			missing = append(missing, serverPlugins[i])
+		return ""
+	}
+
+	plugins := []pluginListInfo{}
+
+	for index := range installedStandalonePlugins {
+		p := pluginListInfo{
+			name:        installedStandalonePlugins[index].Name,
+			description: installedStandalonePlugins[index].Description,
+			target:      string(installedStandalonePlugins[index].Target),
+			installed:   installedStandalonePlugins[index].Version,
+			recommended: getRecommendedPluginVersion(installedStandalonePlugins[index]),
+			status:      common.PluginStatusInstalled,
+		}
+		if p.recommended != "" && p.installed != p.recommended {
+			p.status = common.PluginStatusRecommendUpdate
+			pluginSyncRequired = true
+		}
+		plugins = append(plugins, p)
+	}
+	for index := range recommendedContextPlugins {
+		if recommendedContextPlugins[index].Status != common.PluginStatusInstalled {
+			p := pluginListInfo{
+				name:        recommendedContextPlugins[index].Name,
+				description: recommendedContextPlugins[index].Description,
+				target:      string(recommendedContextPlugins[index].Target),
+				installed:   "",
+				recommended: recommendedContextPlugins[index].RecommendedVersion,
+				status:      common.PluginStatusNotInstalled,
+			}
+			plugins = append(plugins, p)
 			pluginSyncRequired = true
 		}
 	}
-	return installed, missing, pluginSyncRequired, kerrors.NewAggregate(errorList)
-}
 
-func displayInstalledAndMissingSplitView(installedStandalonePlugins []cli.PluginInfo, installedContextPlugins, missingContextPlugins []discovery.Discovered, pluginSyncRequired bool, writer io.Writer) {
-	// List installed standalone plugins
-	cyan := color.New(color.FgCyan)
+	sort.Sort(pluginListInfoSorter(plugins))
 
-	sort.Sort(cli.PluginInfoSorter(installedStandalonePlugins))
-	outputStandalone := component.NewOutputWriterWithOptions(writer, outputFormat, []component.OutputWriterOption{}, "Name", "Description", "Target", "Version", "Status")
-	for index := range installedStandalonePlugins {
-		outputStandalone.AddRow(
-			installedStandalonePlugins[index].Name,
-			installedStandalonePlugins[index].Description,
-			string(installedStandalonePlugins[index].Target),
-			installedStandalonePlugins[index].Version,
-			common.PluginStatusInstalled,
+	outputPluginWriter := component.NewOutputWriterWithOptions(writer, outputFormat, []component.OutputWriterOption{}, "Name", "Description", "Target", "Installed", "Recommended", "Status")
+	for index := range plugins {
+		outputPluginWriter.AddRow(
+			plugins[index].name,
+			plugins[index].description,
+			plugins[index].target,
+			plugins[index].installed,
+			plugins[index].recommended,
+			plugins[index].status,
 		)
 	}
-	for index := range missingContextPlugins {
-		outputStandalone.AddRow(
-			missingContextPlugins[index].Name,
-			missingContextPlugins[index].Description,
-			string(missingContextPlugins[index].Target),
-			missingContextPlugins[index].RecommendedVersion,
-			common.PluginStatusRecommendInstall,
-		)
-	}
-	outputStandalone.Render()
+	outputPluginWriter.Render()
 
-	// // List installed and missing context plugins in one list.
-	// // First group them by context.
-	// contextPlugins := installedContextPlugins
-	// contextPlugins = append(contextPlugins, missingContextPlugins...)
-
-	// ctxPluginsByContext := make(map[string][]discovery.Discovered)
-	// for index := range contextPlugins {
-	// 	ctx := contextPlugins[index].ContextName
-	// 	ctxPluginsByContext[ctx] = append(ctxPluginsByContext[ctx], contextPlugins[index])
-	// }
-
-	// cyanBoldItalic := color.New(color.FgCyan).Add(color.Bold, color.Italic)
-
-	// // sort contexts to maintain consistency in the plugin list output
-	// contexts := make([]string, 0, len(ctxPluginsByContext))
-	// for context := range ctxPluginsByContext {
-	// 	contexts = append(contexts, context)
-	// }
-	// sort.Strings(contexts)
-	// for _, context := range contexts {
-	// 	outputWriter := component.NewOutputWriterWithOptions(writer, outputFormat, []component.OutputWriterOption{}, "Name", "Description", "Target", "Version", "Status")
-
-	// 	ctxSpecificPlugins := ctxPluginsByContext[context]
-	// 	// sort plugins to maintain consistency in the plugin list output
-	// 	sort.Sort(discovery.DiscoveredSorter(ctxSpecificPlugins))
-	// 	fmt.Println("")
-	// 	_, _ = cyanBold.Println("Recommended plugins from context: ", cyanBoldItalic.Sprintf(context))
-	// 	for i := range ctxSpecificPlugins {
-	// 		v := ctxSpecificPlugins[i].InstalledVersion
-	// 		if ctxSpecificPlugins[i].Status == common.PluginStatusNotInstalled {
-	// 			v = ctxSpecificPlugins[i].RecommendedVersion
-	// 		}
-	// 		outputWriter.AddRow(
-	// 			ctxSpecificPlugins[i].Name,
-	// 			ctxSpecificPlugins[i].Description,
-	// 			string(ctxSpecificPlugins[i].Target),
-	// 			v,
-	// 			ctxSpecificPlugins[i].Status,
-	// 		)
-	// 	}
-	// 	outputWriter.Render()
-	// }
-
-	if pluginSyncRequired {
+	if pluginSyncRequired && (outputFormat == "" || outputFormat == string(component.TableOutputType)) {
 		// Print a warning to the user that some context plugins are not installed or outdated and plugin sync is required to install them
 		fmt.Println("")
-		fmt.Printf("Note: As shown above, some recommended plugins have not been installed or are outdated. To install them please run %s.\n", cyan.Sprint("tanzu plugin sync"))
-	}
-}
-
-func displayInstalledAndMissingListView(installedStandalonePlugins []cli.PluginInfo, installedContextPlugins, missingContextPlugins []discovery.Discovered, writer io.Writer) {
-	// List installed standalone plugins
-	outputWriter := component.NewOutputWriterWithOptions(writer, outputFormat, []component.OutputWriterOption{}, "Name", "Description", "Target", "Version", "Status", "Context")
-	sort.Sort(cli.PluginInfoSorter(installedStandalonePlugins))
-	for index := range installedStandalonePlugins {
-		outputWriter.AddRow(
-			installedStandalonePlugins[index].Name,
-			installedStandalonePlugins[index].Description,
-			string(installedStandalonePlugins[index].Target),
-			installedStandalonePlugins[index].Version,
-			installedStandalonePlugins[index].Status,
-			"", // No context
-		)
+		fmt.Printf("Note: As shown above, some recommended plugins have not been installed or are outdated. To install them please run %s.\n", color.Infof("tanzu plugin sync"))
 	}
 
-	// List context plugins that are installed
-	sort.Sort(discovery.DiscoveredSorter(installedContextPlugins))
-	for i := range installedContextPlugins {
-		outputWriter.AddRow(
-			installedContextPlugins[i].Name,
-			installedContextPlugins[i].Description,
-			string(installedContextPlugins[i].Target),
-			installedContextPlugins[i].InstalledVersion,
-			installedContextPlugins[i].Status,
-			installedContextPlugins[i].ContextName,
-		)
-	}
-
-	// List context plugins that are not installed
-	sort.Sort(discovery.DiscoveredSorter(missingContextPlugins))
-	for i := range missingContextPlugins {
-		outputWriter.AddRow(
-			missingContextPlugins[i].Name,
-			missingContextPlugins[i].Description,
-			string(missingContextPlugins[i].Target),
-			missingContextPlugins[i].RecommendedVersion,
-			common.PluginStatusNotInstalled,
-			missingContextPlugins[i].ContextName,
-		)
-	}
-	outputWriter.Render()
 }
 
 func getTarget() configtypes.Target {
