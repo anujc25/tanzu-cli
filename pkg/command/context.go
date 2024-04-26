@@ -273,9 +273,12 @@ func createCtx(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	// Sync all required plugins
-	if err := syncContextPlugins(cmd, ctx.ContextType, ctxName); err != nil {
-		log.Warningf("unable to automatically sync the plugins recommended by the new context. Please run 'tanzu plugin sync' to sync plugins manually, error: '%v'", err.Error())
+	// TODO: Invoke `syncContextPlugins` from here once we have support for context-recommended plugins for `tanzu` context
+	if ctx.ContextType != configtypes.ContextTypeTanzu {
+		// Sync all required plugins
+		if err := syncContextPlugins(cmd, ctx.ContextType, ctxName); err != nil {
+			log.Warningf("unable to automatically sync the plugins recommended by the new context. Please run 'tanzu plugin sync' to sync plugins manually, error: '%v'", err.Error())
+		}
 	}
 	return nil
 }
@@ -1279,9 +1282,12 @@ func useCtx(cmd *cobra.Command, args []string) error { //nolint:gocyclo
 
 	log.Infof("Successfully activated context '%s' %s ", ctxName, suffixString)
 
-	// Sync all required plugins
-	if err := syncContextPlugins(cmd, ctx.ContextType, ctxName); err != nil {
-		log.Warningf("unable to automatically sync the plugins recommended by the active context. Please run 'tanzu plugin sync' to sync plugins manually, error: '%v'", err.Error())
+	// TODO: Invoke `syncContextPlugins` from here once we have support for context-recommended plugins for `tanzu` context
+	if ctx.ContextType != configtypes.ContextTypeTanzu {
+		// Sync all required plugins
+		if err := syncContextPlugins(cmd, ctx.ContextType, ctxName); err != nil {
+			log.Warningf("unable to automatically sync the plugins recommended by the active context. Please run 'tanzu plugin sync' to sync plugins manually, error: '%v'", err.Error())
+		}
 	}
 	return nil
 }

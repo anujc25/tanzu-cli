@@ -77,7 +77,7 @@ func init() {
 `
 }
 
-func login(cmd *cobra.Command, _ []string) (err error) {
+func login(_ *cobra.Command, _ []string) (err error) {
 	// assign the loginEndpoint to context endpoint option variable
 	endpoint = loginEndpoint
 
@@ -100,8 +100,7 @@ func login(cmd *cobra.Command, _ []string) (err error) {
 		return nil
 	}
 
-	// Sync all required plugins
-	_ = syncContextPlugins(cmd, ctx.ContextType, ctxName)
+	// TODO: Invoke `syncContextPlugins` from here once we have support for context-recommended plugins for `tanzu` context
 
 	return nil
 }
